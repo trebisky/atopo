@@ -173,6 +173,11 @@ public class MyView extends View {
 		if ( msg_index >= NUM_MSG ) return;
 		msg[msg_index++] = arg;
 	}
+	
+	public static void onemsg ( String arg ) {
+		setmsg ( arg );
+		nomaps ();
+	}
 
 	@Override
 	protected void onDraw(Canvas canvas) {

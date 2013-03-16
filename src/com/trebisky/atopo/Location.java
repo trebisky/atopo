@@ -34,14 +34,15 @@ public class Location {
 		// form is "n36112a1.tpq"
 		String map = level.find_map ( _long, _lat );
 		tpq = new tpqFile ( map );
+		//MyView.setmsg(map);
 		
 		if ( _long < tpq.west() || _long > tpq.east() || _lat < tpq.south() || _lat > tpq.north() ) {
-			MyView.setmsg ( "Out of Bounds");
+			MyView.setmsg ( "Out of Bounds: " + map );
+			MyView.setmsg ( " W/E: " + tpq.west() + " " + tpq.east() );
+			MyView.setmsg ( " S/N: " + tpq.south() + " " + tpq.north() );
 			MyView.nomaps ();
 			return;
 		}
-		
-		// bogus_setup();
 		
 		// set our location for general reference
 		cur_long = _long;
@@ -57,6 +58,8 @@ public class Location {
 		tile_x = (int) (dlong / m_dlong );
 		tile_upy = (int) (dlat / m_dlat );
 		tile_y = level.num_lat() - tile_upy - 1;
+		//MyView.setmsg("tile_xy " + tile_x + " " + tile_y );
+		//MyView.nomaps();
 		
 		// tile_long = (tile_x - 1) * maplet_dlong;
 		// tile_lat = (tile_upy - 1) * maplet_dlat;

@@ -95,7 +95,11 @@ public class MainActivity extends Activity {
 		// view.nomaps();
 		
 		level = new Level ( tpq_base );
-		level.set_24k ();
+		 level.set_24k ();
+		//  level.set_100k ();
+		// level.set_500k ();
+		// level.set_atlas ();
+		// level.set_state ();
 		
 		location = new Location ( level );
 		location.set (LONG_START,LAT_START);
@@ -118,5 +122,6 @@ public class MainActivity extends Activity {
 		// getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
-
 }
+
+// THE END

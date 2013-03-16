@@ -20,8 +20,9 @@ public class Level {
 	
 	private class Level_info {
 		public String path;
+		public String prefix;
 		public int level; 
-		public boolean file = false;
+		public boolean onefile = false;
 		
 		// overall size of maps in degrees
 		public double map_long, map_lat;
@@ -35,8 +36,12 @@ public class Level {
 		// maps per degree (for level).
 		public int num_maps_long, num_maps_lat;
 		
-		// read some map file to get header info.
-		private void probe_map () {
+		private String find_map_to_probe () {
+			
+			if ( onefile ) {
+				return path;
+			}
+			
 			File f = new File ( path );
 			
 			// It bothers me to do this, given that there may
@@ -46,45 +51,61 @@ public class Level {
 			// and it happens only once at startup.
 			// it does work just fine.
 			File [] list = f.listFiles();	// may be huge !
-			tpqFile tpq = null;
 			
 			for ( File m: list ) {
-				String one_file = m.getName();
+				String a_file = m.getName();
 				
-				if ( one_file.length() < 3 )
+				if ( a_file.length() < 3 )
 					continue;
 				
-				if ( one_file.substring(one_file.length()-3).equals("tpq") ) {
-					tpq = new tpqFile ( path + "/" + one_file );
-					break;
+				if ( a_file.substring(a_file.length()-3).equals("tpq") ) {
+					return path + "/" + a_file;
 				}
 			}
-			if ( tpq == null ) {
-				Log.e ( "aTopo", "Probe fails");
-			}
-				
-			if ( tpq != null && tpq.isvalid() ) {
-				map_long = tpq.east() - tpq.west();
-				map_lat = tpq.north() - tpq.south();
-				
-				num_long = tpq.num_long();
-				num_lat = tpq.num_lat();
-				
-				maplet_dlong = map_long / num_long;
-				maplet_dlat = map_lat / num_lat;
-				
-				num_maps_long = (int) ( 0.9999 / map_long);
-				num_maps_lat = (int) (0.9999 / map_lat);
-			}
+			
+			return null;
 		}
 		
-		public Level_info ( int l, String p ) {
+		// read some map file to get header info.
+		private void probe_map () {
+			String probe_path;
+			tpqFile tpq;
+			
+			probe_path = find_map_to_probe();
+			if ( probe_path == null ) {
+				Log.e ( "aTopo", "Probe fails");
+				MyView.onemsg("Probe_fails");
+				return;
+			}
+			
+			tpq = new tpqFile ( probe_path );
+			
+			if ( ! tpq.isvalid() ) {
+				Log.e ( "aTopo", "Probe fails, bad TPQ: " + probe_path);
+				MyView.onemsg ( "Probe fails, bad TPQ: " + probe_path);
+				return;
+			}
+				
+			map_long = tpq.east() - tpq.west();
+			map_lat = tpq.north() - tpq.south();
+				
+			num_long = tpq.num_long();
+			num_lat = tpq.num_lat();
+				
+			maplet_dlong = map_long / num_long;
+			maplet_dlat = map_lat / num_lat;
+				
+			num_maps_long = (int) ( 0.9999 / map_long);
+			num_maps_lat = (int) (0.9999 / map_lat);
+		}
+		
+		public Level_info ( int l, String p, String x ) {
 			level = l;
 			path = p;
+			prefix = x;
 			
 			if ( l == L_STATE || l == L_ATLAS ) {
-				file = true;
-				return;
+				onefile = true;
 			}
 			
 			probe_map();
@@ -97,11 +118,11 @@ public class Level {
 	
 	public Level ( String base ) {
 		
-		levels[0] = new Level_info ( L_STATE, base + "/us1map1.tpq" );
-		levels[1] = new Level_info ( L_ATLAS, base + "/us1map2.tpq");
-		levels[2] = new Level_info ( L_500K, base + "/l3" );
-		levels[3] = new Level_info ( L_100K, base + "/l4" );
-		levels[4] = new Level_info ( L_24K, base + "/l5" );
+		levels[0] = new Level_info ( L_STATE, base + "/us1map1.tpq", "" );
+		levels[1] = new Level_info ( L_ATLAS, base + "/us1map2.tpq", "" );
+		levels[2] = new Level_info ( L_500K, base + "/l3", "g" );
+		levels[3] = new Level_info ( L_100K, base + "/l4", "c" );
+		levels[4] = new Level_info ( L_24K, base + "/l5", "n" );
 		
 		set_level ( L_24K );
 	}
@@ -164,19 +185,19 @@ public class Level {
 	// form is "n36112a1.tpq"
 	public String find_map ( double _long, double _lat ) {
 		
-		if ( cur_level.file )
+		if ( cur_level.onefile )
 			return cur_level.path;
 			
 		int ilat = (int) _lat;
 		int ilong = (int) _long;
-		Log.w ( "aTopo", "find map: " + ilong + " " + ilat );
+		//Log.w ( "aTopo", "find map: " + ilong + " " + ilat );
 		
 		int ix = (int) (-(_long-ilong) / cur_level.map_long);
 		int iy = (int) ((_lat-ilat) / cur_level.map_lat);
-		Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
+		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
 		
 		ilong = -ilong;
-		return cur_level.path + "/n" + ilat + ilong + lat_code[iy] + (ix+1) + ".tpq";
+		return cur_level.path + "/" + cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1) + ".tpq";
 	}
 
 }
