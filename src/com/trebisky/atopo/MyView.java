@@ -1,7 +1,5 @@
-package com.trebisky.tpqreader;
+package com.trebisky.atopo;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.HashMap;
@@ -19,59 +17,23 @@ import android.view.View;
 
 public class MyView extends View {
 
-	private static final boolean drop_dead = true;
-	
 	private static final int NUM_MSG = 10;
-	private boolean no_maps = false;
-	private String[] msg = new String[NUM_MSG];
-	private int msg_index;
+	private static boolean no_maps = false;
+	private static String[] msg = new String[NUM_MSG];
+	private static int msg_index;
+	
+	private Level level;
+	private Location location;
 	
 	private static final String TAG = "TOPO";
 
 	private Paint myPaint;
 
-	private String tpq_dir;
-	private RandomAccessFile rfile;
-	private long file_size;
-	
-	private int[] index;
-	private int[] size;
-	private int n_index;
-
-	private boolean run_seq = false;
-	private int next_map;
-
-	private double my_long;
-	private double my_lat;
-	
-	private double my_fx;
-	private double my_fy;
-
-	private int num_long;
-	private int num_lat;
-	
-	/* size of a map in degrees */
-	private double map_long, map_lat;
-	
-	/* number of maps in a degree */
-	private int num_maps_long, num_maps_lat;
-	
-	private double elong, wlong;
-	private double slat, nlat;
-
-	private double maplet_dlong;
-	private double maplet_dlat;
-	
+	// degrees per pixel
 	private double scalex, scaley;
 
-	private int tile_x;
-	private int tile_y;
-
-	// private tpqTile draw_tile;
-	
 	// motion stuff ...
 	private boolean have_last = false;
-	private int firstx, firsty;
 	private int lastx, lasty;
 	
 	// cache
@@ -81,8 +43,8 @@ public class MyView extends View {
 		int key;
 		tpqTile rv;
 		
-		if ( _x < 0 || _x >= num_long ) { return null; }
-		if ( _y < 0 || _y >= num_lat ) { return null; }
+		if ( _x < 0 || _x >= level.num_long() ) { return null; }
+		if ( _y < 0 || _y >= level.num_lat() ) { return null; }
 		
 		key = _y * 1000 + _x;
 		rv = (tpqTile) maplet_cache.get(key);
@@ -104,19 +66,18 @@ public class MyView extends View {
 		
 		public tpqTile(int _x, int _y) {
 			//Log.w(TAG,"tpq Tile: " + _x + "  " + _y);
-			if ( x < 0 || x >= num_long ) {
+			if ( x < 0 || x >= level.num_long() ) {
 				map = null;
 				return;
 			}
-			if ( y < 0 || y >= num_lat ) {
+			if ( y < 0 || y >= level.num_lat() ) {
 				map = null;
 				return;
 			}
 			x = _x;
 			y = _y;
 			
-			int idx = _y * num_long + _x;
-			//Log.w(TAG,"tpq Tile(long) " + num_long );
+			int idx = _y * level.num_long() + _x;
 			loadTile(idx);
 			if ( map == null ) {
 				Log.e ( TAG, "bad xy = " + x + "  " + y);
@@ -128,25 +89,20 @@ public class MyView extends View {
 			loadTile(idx);
 		}
 
-		// This is a hack to support display
-		// of a plain old jpeg file.
-		public tpqTile ( String path ) {
-			File imgFile = new File(path);
-
-			if (imgFile.exists()) {
-				map = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-			}
-		}
-
 		private void loadTile(int idx) {
-			if ( idx < 0 || idx >= n_index ) {
-				Log.e(TAG,"bad tpq index: " + idx);
+			
+			// XXX
+			tpqFile My_tpq = location.bogus_tpq();
+			
+			int offset = My_tpq.offset(idx);
+			if ( offset <= 0 ) {
+				Log.e(TAG,"loadTile - bad tpq index: " + idx);
 				map = null;
 				return;
 			}
-				
-			int offset = index[idx];
-			int length = size[idx];
+			
+			int length = My_tpq.size(idx);
+			RandomAccessFile rfile = My_tpq.rfile();
 			
 			byte[] jpeg_data = new byte[length];
 
@@ -155,7 +111,9 @@ public class MyView extends View {
 				rfile.read(jpeg_data, 0, length);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				// e.printStackTrace();
+				map = null;
+				return;
 			}
 
 			// Don't know why, but the following always returned null
@@ -177,8 +135,14 @@ public class MyView extends View {
 		myPaint = new Paint();
 		myPaint.setColor(Color.BLACK);
 		myPaint.setTextSize(20);
-		next_map = 0;
 		maplet_cache = new HashMap ();
+	}
+	
+	// I call this after instantiation,
+	// could be part of constructor.
+	public void setup ( Level _level, Location _loc ) {
+		level = _level;
+		location = _loc;
 	}
 
 	public MyView(Context context) {
@@ -199,11 +163,13 @@ public class MyView extends View {
 		// TODO Auto-generated constructor stub
 	}
 	
-	public void nomaps () {
+	// must call this if you want to use setmsg()
+	// and see the output.
+	public static void nomaps () {
 		no_maps = true;
 	}
 	
-	public void setmsg ( String arg ) {
+	public static void setmsg ( String arg ) {
 		if ( msg_index >= NUM_MSG ) return;
 		msg[msg_index++] = arg;
 	}
@@ -244,7 +210,7 @@ public class MyView extends View {
 		// (maybe from the header), in which case
 		// we will get rid of this here AND let
 		// the loop below handle the 0,0 case
-		center_maplet = getTile ( tile_x, tile_y );
+		center_maplet = getTile ( location.maplet_x(), location.maplet_y() );
 
 		//Log.w(TAG, "in onDraw " + draw_tile);
 		if (center_maplet == null) {
@@ -259,11 +225,11 @@ public class MyView extends View {
 		px = center_maplet.getWidth();
 		py = center_maplet.getHeight();
 		
-		scalex = maplet_dlong / px;
-		scaley = maplet_dlat / py;
+		scalex = level.maplet_dlong() / px;
+		scaley = level.maplet_dlat() / py;
 		
-		offx = (int) (my_fx * px);
-		offy = (int) (my_fy * py);
+		offx = (int) (location.fx() * px);
+		offy = (int) (location.fy() * py);
 		
 		// This puts the chosen location in the
 		// center tile in the center of the canvas.
@@ -308,9 +274,6 @@ public class MyView extends View {
 		canvas.drawBitmap(extra.map, ex, ey, null);
 		*/
 		
-		//if ( drop_dead )
-		//	return;
-		
 		for ( int xx = nx1; xx <= nx2; xx++ ) {
 			for ( int yy = ny1; yy <= ny2; yy++ ) {
 				if ( xx == 0 && yy == 0 ) {
@@ -334,134 +297,6 @@ public class MyView extends View {
 		// canvas.drawText(msg4, 100, 250, myPaint);
 	}
 
-	// display a single .jpg or .png file
-	public void setImage(String impath) {
-		// draw_tile = new tpqTile ( impath );
-	}
-
-	// called whenver timer ticks and we should
-	// go to the next file.
-	public void nextFile() {
-
-		if (!run_seq) {
-			return;
-		}
-
-		++next_map;
-		if (next_map >= n_index) {
-			next_map = 0;
-		}
-		//msg3 = "Showing: " + next_map;
-
-		// draw_tile = new tpqTile(next_map);
-	}
-
-	// read 2 bytes
-	// 0x8950 is a PNG ?
-	// 0xFFD8 is a JPG (swapped)
-	private boolean is_jpeg(RandomAccessFile rf, int offset) {
-		int val;
-
-		try {
-			rf.seek(offset);
-			val = rf.readShort() & 0xffff;
-		} catch (IOException e) {
-			return false;
-		}
-
-		// test it against the swapped constant
-		return val == 0xFFD8 ? true : false;
-	}
-
-	// This reads the entire index, but then scans to count how
-	// many pointers are actually JPEG data (these always come first),
-	// then returns a reduced count.
-	private void load_index() throws IOException {
-		
-		int off1;
-		int [] x_index;
-		int count;
-		int njpeg;
-		int i;
-		
-		rfile.seek(1024);
-		off1 = Integer.reverseBytes(rfile.readInt());
-		rfile.seek(1024);
-		
-		count = (off1 - 1024) / 4 - 4;
-		x_index = new int[count];
-
-		// int nbytes = num * 4;
-		// byte[] index_buf;
-		// index_buf = new byte[nbytes];
-		// rfile.read(index_buf, 0, nbytes );
-		// fix_index(index_buf, index, n_index);
-
-		// msg1 = "Total tiles: " + count;
-
-		for (i = 0; i < count; i++) {
-			x_index[i] = Integer.reverseBytes(rfile.readInt());
-		}
-		
-		// It is tempting to put the is_jpeg testing below
-		// into the loop above, but it would involve
-		// seeking back and forth each time, so we don't
-
-		// Note that for us1map2.tpq there are 6133 indices
-		// of which only 1534 point to tiles
-		// (this map is 59 by 26)
-		for ( njpeg = 0; njpeg < count; njpeg++) {
-			if ( ! is_jpeg(rfile, x_index[njpeg])) {
-				break;
-			}
-		}
-		//Log.w ( TAG, "Jpeg tiles: " + njpeg );
-		
-		size = new int[njpeg];
-		
-		// some TPQ files have no useless pointers
-		// after the JPEG pointers, so we must take
-		// care to avoid a out of bounds array reference.
-		for ( i=0; i<njpeg; i++ ) {
-			if ( i+1 < count )
-				size[i] = x_index[i+1] - x_index[i];
-			else
-				size[i] = (int) file_size - x_index[i];
-		}
-		
-		index = new int[njpeg];
-		n_index = njpeg;
-		
-		System.arraycopy( x_index, 0, index, 0, njpeg );
-	}
-
-	private void read_header() throws IOException {
-		int junk;
-
-		junk = rfile.readInt(); // version
-		
-		wlong = Double.longBitsToDouble ( Long.reverseBytes( rfile.readLong() ));
-		nlat = Double.longBitsToDouble ( Long.reverseBytes( rfile.readLong() ));
-		elong = Double.longBitsToDouble ( Long.reverseBytes( rfile.readLong() ));
-		slat = Double.longBitsToDouble ( Long.reverseBytes( rfile.readLong() ));
-		
-		map_long = elong - wlong;
-		map_lat = nlat - slat;
-		
-		num_maps_long = (int) ( 0.9999 / map_long );
-		num_maps_lat = (int) (0.9999 / map_lat );
-		
-		// setmsg ( "West: " + west );
-		// setmsg ( "East: " + east );
-		
-		rfile.skipBytes(456);
-		num_long = Integer.reverseBytes(rfile.readInt());
-		num_lat = Integer.reverseBytes(rfile.readInt());
-
-		maplet_dlong = (elong - wlong) / num_long;
-		maplet_dlat = (nlat - slat) / num_lat;
-	}
-	
 	public void handle_move ( int dx, int dy ) {
 		double delta_long;
 		double delta_lat;
@@ -469,101 +304,9 @@ public class MyView extends View {
 		delta_long = dx * scalex;
 		delta_lat = dy * scaley;
 		
-		setLoc ( my_long - delta_long, my_lat + delta_lat );
+		location.jog ( -delta_long,  delta_lat );
+		
 		this.invalidate();
-	}
-	
-	public void setLoc(double lng, double lat) {
-		int tile_upy;
-		double dlong, dlat;		// from map edge
-		// double tile_long, tile_lat;
-		tpqTile preload;
-		
-		if ( lng < wlong || lng > elong || lat < slat || lat > nlat ) {
-			setmsg ( "Out of Bounds");
-			nomaps ();
-			return;
-		}
-		
-		my_long = lng;
-		my_lat = lat;
-		
-		// from map edge (lower left)
-		dlong = my_long - wlong;
-		dlat = my_lat - slat;
-		
-		tile_x = (int) (dlong / maplet_dlong);
-		tile_upy = (int) (dlat / maplet_dlat);
-		tile_y = num_lat - tile_upy - 1;
-		
-		// tile_long = (tile_x - 1) * maplet_dlong;
-		// tile_lat = (tile_upy - 1) * maplet_dlat;
-		
-		my_fx = (dlong - tile_x*maplet_dlong) / maplet_dlong;
-		my_fy = (dlat - tile_upy*maplet_dlat) / maplet_dlat;
-
-		// msg4 = "tile_xy = " + tile_x + "  " + tile_y;
-		//Log.w(TAG, "in setLoc " + draw_tile);
-		
-		// We do this here, so this tile gets into the cache
-		// before onDraw is called.
-		preload = new tpqTile(tile_x, tile_y);
-	}
-	
-	public void setDir ( String dir ) {
-		tpq_dir = dir;
-	}
-	
-	final String[] lat_code = {"a", "b", "c", "d", "e", "f", "g", "h" };
-	
-	// Figure out which map file the coordinates are in.
-	// form is "n36112a1.tpq"
-	public void setMap ( double lng, double lat ) {
-		
-		int ilat = (int) lat;
-		int ilong = (int) lng;
-		int ix = (int) (-(lng-ilong) / map_long);
-		int iy = (int) ((lat-ilat) / map_lat);
-		
-		ilong = -ilong;
-		String path = tpq_dir + "/n" + ilat + ilong + lat_code[iy] + (ix+1) + ".tpq";
-		
-		// setmsg ( path );
-		// nomaps ();
-		setTPQ ( path );
-	}
-
-	public void setTPQ(String path) {
-
-		File tpqfile;
-
-		try {
-			tpqfile = new File(path);
-			file_size = tpqfile.length();
-			rfile = new RandomAccessFile(tpqfile, "r");
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		try {
-			read_header();
-			load_index();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		Log.w ( TAG, "num_long = " + num_long );
-		Log.w ( TAG, "num_lat = " + num_lat );
-		Log.w ( TAG, "n_index = " + n_index );
-
-		// msg4 = "maplets: " + num_long + " by " + num_lat;
-
-		// draw_tile = new tpqTile ( 0 );
-		
-		Log.w ( TAG, "memory limit: " + Runtime.getRuntime().maxMemory() );
-		Log.w ( TAG, "memory limit: " + Runtime.getRuntime().maxMemory() );
 	}
 	
 	@Override

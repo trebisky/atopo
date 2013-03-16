@@ -1,4 +1,4 @@
-package com.trebisky.tpqreader;
+package com.trebisky.atopo;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -35,12 +35,22 @@ public class MainActivity extends Activity {
 	// private final String tpq_file = "/storage/sdcard1/us1map2.tpq";
 	// private final String tpq_file = "/storage/sdcard1/topo/us1map2.tpq";
 	
+	// TODO - ultimately I would like to have this program look
+	// on both sdcard0 and sdcard1 - this would allow a person who
+	// did not have an SD card slot to put maps on internal storage.
+	// Also I would want this program to "merge" both file collections
+	// if a user had both, allowing them to have an internal set of files
+	// optionally augmented by files on the SD card.
+	private final String tpq_base = "/storage/sdcard1/topo";
+	
 	private final String tpq_dir = "/storage/sdcard1/topo/l5";
 	private final String tpq_file = "/storage/sdcard1/topo/l5/n36112b2.tpq";
 	
 	private final int delay = 2 * 1000;
 	
 	private MyView view;
+	private Level level; 
+	private Location location;
 
 	private static Handler handle = new Handler();
 
@@ -48,12 +58,12 @@ public class MainActivity extends Activity {
 	class tickTask extends TimerTask {
 		@Override
 		public void run() {
-			view.nextFile();
+			//view.nextFile();
 
 			// We invalidate the view, which forces an onDraw()
 			handle.post(new Runnable() {
 				public void run() {
-					view.invalidate();
+					// view.invalidate();
 				}
 			});
 		}
@@ -84,20 +94,22 @@ public class MainActivity extends Activity {
 		view = new MyView(this);
 		// view.nomaps();
 		
-		view.setDir(tpq_dir);
-		view.setTPQ(tpq_file);
-		view.setMap(LONG_START,LAT_START);
-		view.setLoc(LONG_START,LAT_START);
+		level = new Level ( tpq_base );
+		level.set_24k ();
+		
+		location = new Location ( level );
+		location.set (LONG_START,LAT_START);
+		
+		view.setup ( level, location );
 		
 		setContentView(view);
 
-		Timer timer = new Timer();
-		timer.schedule(new tickTask(), 0, delay);
+		//Timer timer = new Timer();
+		//timer.schedule(new tickTask(), 0, delay);
 
 		// PowerManager powerManager = (PowerManager)
 		// getSystemService(Context.POWER_SERVICE);
-		// wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK,
-		// "Sabino");
+		// wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "aTopo");
 	}
 
 	@Override
