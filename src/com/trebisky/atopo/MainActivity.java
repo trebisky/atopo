@@ -43,8 +43,8 @@ public class MainActivity extends Activity {
 	// optionally augmented by files on the SD card.
 	private final String tpq_base = "/storage/sdcard1/topo";
 	
-	private final String tpq_dir = "/storage/sdcard1/topo/l5";
-	private final String tpq_file = "/storage/sdcard1/topo/l5/n36112b2.tpq";
+	// private final String tpq_dir = "/storage/sdcard1/topo/l5";
+	// private final String tpq_file = "/storage/sdcard1/topo/l5/n36112b2.tpq";
 	
 	private final int delay = 2 * 1000;
 	
@@ -95,11 +95,11 @@ public class MainActivity extends Activity {
 		// view.nomaps();
 		
 		level = new Level ( tpq_base );
-		 level.set_24k ();
+		// level.set_24k ();
 		//  level.set_100k ();
 		// level.set_500k ();
 		// level.set_atlas ();
-		// level.set_state ();
+		level.set_state ();
 		
 		location = new Location ( level );
 		location.set (LONG_START,LAT_START);

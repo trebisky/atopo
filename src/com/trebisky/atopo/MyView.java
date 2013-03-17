@@ -25,7 +25,11 @@ public class MyView extends View {
 	private Level level;
 	private Location location;
 	
-	private static final String TAG = "TOPO";
+	private static final String TAG = "atopo";
+	
+	public static void Log ( String msg ) {
+		Log.e ( TAG, msg );
+	}
 
 	private Paint myPaint;
 
@@ -37,7 +41,13 @@ public class MyView extends View {
 	private int lastx, lasty;
 	
 	// cache
-	HashMap maplet_cache;
+	private static HashMap maplet_cache;
+	private static FileCache file_cache;
+	
+	// XXX wart
+	public static FileCache file_cache () {
+		return file_cache;
+	}
 	
 	private tpqTile getTile ( int _x, int _y ) {
 		int key;
@@ -103,6 +113,10 @@ public class MyView extends View {
 			
 			int length = My_tpq.size(idx);
 			RandomAccessFile rfile = My_tpq.rfile();
+			if ( rfile == null ) {
+				map = null;
+				return;
+			}
 			
 			byte[] jpeg_data = new byte[length];
 
@@ -136,6 +150,7 @@ public class MyView extends View {
 		myPaint.setColor(Color.BLACK);
 		myPaint.setTextSize(20);
 		maplet_cache = new HashMap ();
+		file_cache = new FileCache ();
 	}
 	
 	// I call this after instantiation,
@@ -321,17 +336,17 @@ public class MyView extends View {
 		int x, y;
 		
 		if ( action == MotionEvent.ACTION_DOWN ) {
-			Log.w(TAG,"Touch - down");
+			//Log.w(TAG,"Touch - down");
 			have_last = false;	// really !
 			return true;
 		} else if ( action == MotionEvent.ACTION_UP ) {
-			Log.w(TAG,"Touch - up");
+			//Log.w(TAG,"Touch - up");
 			have_last = false;
 			return true;
 		} else if ( action == MotionEvent.ACTION_MOVE ) {
 			x = (int) e.getX();
 			y = (int) e.getY();
-			Log.w(TAG,"Touch - move: " + x + " " + y);
+			//Log.w(TAG,"Touch - move: " + x + " " + y);
 			if ( ! have_last ) {
 				lastx = x;
 				lasty = y;

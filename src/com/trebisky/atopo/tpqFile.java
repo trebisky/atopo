@@ -7,12 +7,15 @@ import java.io.RandomAccessFile;
 
 public class tpqFile {
 
+	private File tpqfile;
 	private RandomAccessFile rfile;
 	private long file_size;
 	
 	private int[] index;
 	private int[] size;
 	private int n_index;
+	
+	private boolean is_open;
 	
 	// The following values are extracted from
 	// the header.
@@ -28,8 +31,6 @@ public class tpqFile {
 	
 	public tpqFile ( String path ) {
 
-		File tpqfile;
-
 		try {
 		    tpqfile = new File(path);
 		    file_size = tpqfile.length();
@@ -39,6 +40,8 @@ public class tpqFile {
 			n_index = 0;
 			return;
 		}
+		
+		is_open = true;
 
 		try {
 		    read_header();
@@ -64,6 +67,7 @@ public class tpqFile {
 			// TODO Auto-generated catch block
 			// e.printStackTrace();
 		}
+		is_open = false;
 	}
 	
 	public boolean isvalid () {
@@ -81,6 +85,14 @@ public class tpqFile {
 	}
 	
 	public RandomAccessFile rfile () {
+		if ( is_open )
+			return rfile;
+		
+		try {
+			rfile = new RandomAccessFile(tpqfile, "r");
+		} catch (FileNotFoundException e) {
+			return null;
+		}
 		return rfile;
 	}
 	

@@ -2,11 +2,11 @@ package com.trebisky.atopo;
 
 import java.io.File;
 
-import android.util.Log;
-
 // Class to manage level specific data
 public class Level {
 
+	private static final int NUM_LEVELS = 5;
+	
 	// XX should probably change to a Java enum someday
 	private static final int L_STATE = 0;
 	private static final int L_ATLAS = 1;
@@ -14,15 +14,15 @@ public class Level {
 	private static final int L_100K = 3;
 	private static final int L_24K = 4;
 	
-	private static final int NUM_LEVELS = 5;
+	private static Level_info levels[] = new Level_info[NUM_LEVELS];
 	
-	// private int levels[] = { L_STATE, L_ATLAS, L_500K, L_100K, L_24K };
+	private static Level_info cur_level;
 	
 	private class Level_info {
 		public String path;
 		public String prefix;
 		public int level; 
-		public boolean onefile = false;
+		public String onefile;
 		
 		// overall size of maps in degrees
 		public double map_long, map_lat;
@@ -38,8 +38,8 @@ public class Level {
 		
 		private String find_map_to_probe () {
 			
-			if ( onefile ) {
-				return path;
+			if ( onefile != null ) {
+				return onefile;
 			}
 			
 			File f = new File ( path );
@@ -59,7 +59,8 @@ public class Level {
 					continue;
 				
 				if ( a_file.substring(a_file.length()-3).equals("tpq") ) {
-					return path + "/" + a_file;
+					// return path + "/" + a_file;
+					return a_file.substring(0,a_file.length()-4);
 				}
 			}
 			
@@ -68,23 +69,31 @@ public class Level {
 		
 		// read some map file to get header info.
 		private void probe_map () {
-			String probe_path;
+			String probe_map;
 			tpqFile tpq;
 			
-			probe_path = find_map_to_probe();
-			if ( probe_path == null ) {
-				Log.e ( "aTopo", "Probe fails");
+			probe_map = find_map_to_probe();
+			
+			if ( probe_map == null ) {
+				MyView.Log ( "Probe fails");
 				MyView.onemsg("Probe_fails");
 				return;
 			}
 			
-			tpq = new tpqFile ( probe_path );
+			// MyView.onemsg("Probing " + probe_map);
+			// if ( true ) return;
+			
+			// tpq = new tpqFile ( probe_path );
+			tpq = MyView.file_cache().get(probe_map);
 			
 			if ( ! tpq.isvalid() ) {
-				Log.e ( "aTopo", "Probe fails, bad TPQ: " + probe_path);
-				MyView.onemsg ( "Probe fails, bad TPQ: " + probe_path);
+				MyView.Log ( "Probe fails, bad TPQ: " + probe_map);
+				MyView.onemsg ( "Probe fails, bad TPQ: " + probe_map);
 				return;
 			}
+			
+			// no need to keep this open after a probe.
+			tpq.close();
 				
 			map_long = tpq.east() - tpq.west();
 			map_lat = tpq.north() - tpq.south();
@@ -99,27 +108,27 @@ public class Level {
 			num_maps_lat = (int) (0.9999 / map_lat);
 		}
 		
-		public Level_info ( int l, String p, String x ) {
+		public Level_info ( int l, String p, String extra ) {
 			level = l;
 			path = p;
-			prefix = x;
 			
 			if ( l == L_STATE || l == L_ATLAS ) {
-				onefile = true;
+				onefile = extra;
+			} else {
+				prefix = extra;
 			}
+			
+			// keep file_cache from blowing up.
+			cur_level = this;
 			
 			probe_map();
 		}
 	}
 	
-	private Level_info levels[] = new Level_info[NUM_LEVELS];
-	
-	private Level_info cur_level;
-	
 	public Level ( String base ) {
 		
-		levels[0] = new Level_info ( L_STATE, base + "/us1map1.tpq", "" );
-		levels[1] = new Level_info ( L_ATLAS, base + "/us1map2.tpq", "" );
+		levels[0] = new Level_info ( L_STATE, base, "us1map1" );
+		levels[1] = new Level_info ( L_ATLAS, base, "us1map2" );
 		levels[2] = new Level_info ( L_500K, base + "/l3", "g" );
 		levels[3] = new Level_info ( L_100K, base + "/l4", "c" );
 		levels[4] = new Level_info ( L_24K, base + "/l5", "n" );
@@ -185,8 +194,8 @@ public class Level {
 	// form is "n36112a1.tpq"
 	public String find_map ( double _long, double _lat ) {
 		
-		if ( cur_level.onefile )
-			return cur_level.path;
+		if ( cur_level.onefile != null )
+			return cur_level.onefile;
 			
 		int ilat = (int) _lat;
 		int ilong = (int) _long;
@@ -197,7 +206,15 @@ public class Level {
 		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
 		
 		ilong = -ilong;
-		return cur_level.path + "/" + cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1) + ".tpq";
+		return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
+	}
+	
+	public static String base_path () {
+		if ( cur_level == null )
+			MyView.Log ( "cur_level is null");
+		if ( cur_level.path == null )
+			MyView.Log ( "cur_level.path is null");
+		return cur_level.path;
 	}
 
 }
