@@ -20,9 +20,19 @@ public class MainActivity extends Activity {
 	// private final double LONG_START = -112.203;
 	// private final double LAT_START = 36.141;
 	
-	// Grand Canyon, Horseshoe Mesa
-	private final double LONG_START = -111.975;
-	private final double LAT_START = 36.024;
+	// Grand Canyon, Horseshoe Mesa, top of peak
+	//private final double LONG_START = -111.975;
+	//private final double LAT_START = 36.024;
+	
+	// Grand Canyon, Horseshoe Mesa, east side (right)
+	private final double LONG_START = -111.97126;
+	private final double LAT_START = 36.02472;
+	
+	// Dead Center of Sonora Quad, California
+	// private final double LONG_START = -120.438;
+	// private final double LAT_START = 37.938;
+	//private final double LONG_START = -120.50 +(7.5/60.0/2.0);
+	//private final double LAT_START = 38.0 -(7.5/60.0/2.0);
 	
 	// private final int MAP_WIDTH = 1280;
 	// private final int MAP_HEIGHT = 800;
@@ -92,14 +102,13 @@ public class MainActivity extends Activity {
 		// / getWindowManager().getDefaultDisplay().getHeight();
 
 		view = new MyView(this);
-		// view.nomaps();
 		
 		level = new Level ( tpq_base );
-		// level.set_24k ();
+		level.set_24k ();
 		//  level.set_100k ();
 		// level.set_500k ();
 		// level.set_atlas ();
-		level.set_state ();
+		// level.set_state ();
 		
 		location = new Location ( level );
 		location.set (LONG_START,LAT_START);

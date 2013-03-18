@@ -1,12 +1,6 @@
 package com.trebisky.atopo;
 
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.HashMap;
-
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -18,7 +12,6 @@ import android.view.View;
 public class MyView extends View {
 
 	private static final int NUM_MSG = 10;
-	private static boolean no_maps = false;
 	private static String[] msg = new String[NUM_MSG];
 	private static int msg_index;
 	
@@ -40,117 +33,10 @@ public class MyView extends View {
 	private boolean have_last = false;
 	private int lastx, lasty;
 	
-	// cache
-	private static HashMap maplet_cache;
-	private static FileCache file_cache;
-	
-	// XXX wart
-	public static FileCache file_cache () {
-		return file_cache;
-	}
-	
-	private tpqTile getTile ( int _x, int _y ) {
-		int key;
-		tpqTile rv;
-		
-		if ( _x < 0 || _x >= level.num_long() ) { return null; }
-		if ( _y < 0 || _y >= level.num_lat() ) { return null; }
-		
-		key = _y * 1000 + _x;
-		rv = (tpqTile) maplet_cache.get(key);
-		
-		if ( rv == null ) {
-			rv = new tpqTile ( _x, _y );
-			if ( rv.map != null )
-				maplet_cache.put(key, rv);
-			else
-				rv = null;
-		}
-		return rv;
-	}
-
-	class tpqTile {
-		int x; /* indices in the TPQ file */
-		int y;
-		Bitmap map;
-		
-		public tpqTile(int _x, int _y) {
-			//Log.w(TAG,"tpq Tile: " + _x + "  " + _y);
-			if ( x < 0 || x >= level.num_long() ) {
-				map = null;
-				return;
-			}
-			if ( y < 0 || y >= level.num_lat() ) {
-				map = null;
-				return;
-			}
-			x = _x;
-			y = _y;
-			
-			int idx = _y * level.num_long() + _x;
-			loadTile(idx);
-			if ( map == null ) {
-				Log.e ( TAG, "bad xy = " + x + "  " + y);
-			}
-		}
-		
-		// hack for special use
-		public tpqTile(int idx) {
-			loadTile(idx);
-		}
-
-		private void loadTile(int idx) {
-			
-			// XXX
-			tpqFile My_tpq = location.bogus_tpq();
-			
-			int offset = My_tpq.offset(idx);
-			if ( offset <= 0 ) {
-				Log.e(TAG,"loadTile - bad tpq index: " + idx);
-				map = null;
-				return;
-			}
-			
-			int length = My_tpq.size(idx);
-			RandomAccessFile rfile = My_tpq.rfile();
-			if ( rfile == null ) {
-				map = null;
-				return;
-			}
-			
-			byte[] jpeg_data = new byte[length];
-
-			try {
-				rfile.seek(offset);
-				rfile.read(jpeg_data, 0, length);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				// e.printStackTrace();
-				map = null;
-				return;
-			}
-
-			// Don't know why, but the following always returned null
-			// myBitmap = BitmapFactory.decodeFileDescriptor ( rfile.getFD() );
-
-			map = BitmapFactory.decodeByteArray(jpeg_data, 0, length);
-		}
-		
-		public int getWidth () {
-			return map.getWidth();
-		}
-		
-		public int getHeight () {
-			return map.getHeight();
-		}
-	}
-
 	private void init() {
 		myPaint = new Paint();
 		myPaint.setColor(Color.BLACK);
 		myPaint.setTextSize(20);
-		maplet_cache = new HashMap ();
-		file_cache = new FileCache ();
 	}
 	
 	// I call this after instantiation,
@@ -178,12 +64,6 @@ public class MyView extends View {
 		// TODO Auto-generated constructor stub
 	}
 	
-	// must call this if you want to use setmsg()
-	// and see the output.
-	public static void nomaps () {
-		no_maps = true;
-	}
-	
 	public static void setmsg ( String arg ) {
 		if ( msg_index >= NUM_MSG ) return;
 		msg[msg_index++] = arg;
@@ -191,23 +71,43 @@ public class MyView extends View {
 	
 	public static void onemsg ( String arg ) {
 		setmsg ( arg );
-		nomaps ();
 	}
-
+	
+	private void drawBox ( Canvas canvas, int ox, int oy, int px, int py ) {
+		
+		canvas.drawLine ( ox, oy, ox+px, oy, myPaint );
+		canvas.drawLine ( ox, oy, ox, oy+py, myPaint );
+		canvas.drawLine ( ox+px, oy, ox+px, oy+py, myPaint );
+		canvas.drawLine ( ox, oy+py, ox+px, oy+py, myPaint );
+	}
+	
+	private void marker ( Canvas canvas, int x, int y ) {
+		canvas.drawLine ( x-20, y, x+20, y, myPaint );
+		canvas.drawLine ( x, y-20, x, y+20, myPaint );
+	}
+	
 	@Override
 	protected void onDraw(Canvas canvas) {
+		double center_long, center_lat;
 		int ox, oy;
 		int ex, ey;
 		int cw, ch; // size of canvas
 		int cx, cy; // center of canvas
+		double fx, fy;
+		
 		String bad = "NULL";
 		
 		int px, py;
 		int offx, offy;
 		int nx1, nx2;
 		int ny1, ny2;
-		tpqTile center_maplet;
+		
+		Maplet center_maplet;
 
+		// Sometimes this shows through
+		// as narrow vertical blue lines
+		// as we scroll into a region with
+		// different pixel width for maplets.
 		canvas.drawColor(Color.BLUE);
 		
 		// A great way to do some debugging
@@ -215,14 +115,54 @@ public class MyView extends View {
 			canvas.drawText(msg[i], 100, 100 + i * 30, myPaint);
 		}
 		
-		if ( no_maps ) return;
-
+		if ( msg_index > 0 ) return;
+		
+		center_long = location.cur_long();
+		center_lat = location.cur_lat();
+		
+		// Figure out which map file the coordinates are in.
+		// form is something like "n36112a1"
+		String map = level.encode_map ( center_long, center_lat );
+		Log ( "Draw: " + map + " " + center_long + " " + center_lat );
+				
+		// fetch/read map header
+		tpqFile center_tpq = level.fetch_map(map);
+		if ( ! center_tpq.isvalid() ) {
+			return;
+		}
+		
+		// from map edge (lower left)
+		//double dlong = center_long - center_tpq.west();
+		//double dlat = center_lat - center_tpq.south();
+		
+		// size of a maplet in degrees, this level.
+		double m_dlong = level.maplet_dlong();
+		double m_dlat = level.maplet_dlat();
+		
+		// world maplet x/y from lower right
+		// X increasing to left, Y increasing up.
+		int maplet_x = - (int) (center_long / m_dlong);
+		int maplet_y = (int) (center_lat / m_dlat);
+		
+		Log ( "Draw: " + map + " " + maplet_x + " " + maplet_y );
+		
+		// Within maplet, from lower left
+		// Log ( "center " +center_long + " " + center_lat );
+		// Log ( "maplet_x,y " +maplet_x + " " + maplet_y );
+		// Log ( "m_dlong/lat = " + m_dlong + " " + m_dlat );
+		
+		fx = (-center_long - maplet_x * m_dlong) / m_dlong;
+		fy = (center_lat - maplet_y * m_dlat) / m_dlat;
+		
+		// canvas size
 		cw = canvas.getWidth();
 		ch = canvas.getHeight();
 		
+		// canvas center
 		cx = cw / 2;
 		cy = ch / 2;
 		
+		// XXX XXX
 		// We really only need to get this here
 		// in this routine so that we have access
 		// to values for px, py, someday we will
@@ -230,7 +170,10 @@ public class MyView extends View {
 		// (maybe from the header), in which case
 		// we will get rid of this here AND let
 		// the loop below handle the 0,0 case
-		center_maplet = getTile ( location.maplet_x(), location.maplet_y() );
+		
+		// center_maplet = level.maplet_lookup ( sheet_x, sheet_y );
+		center_maplet = level.maplet_lookup ( maplet_x, maplet_y );
+		// Log ( "View mx,my A " +maplet_x + " " + maplet_y );
 
 		//Log.w(TAG, "in onDraw " + draw_tile);
 		if (center_maplet == null) {
@@ -240,20 +183,29 @@ public class MyView extends View {
 		}
 		
 		// XXX
-		// eventually this will be a global thing.
-		// it is constant for a given TPQ file.
-		px = center_maplet.getWidth();
-		py = center_maplet.getHeight();
+		// eventually this could be a global thing.
+		// 
+		// For some levels this is a constant that could be
+		// "wired" into the level initialization.
+		// For others (like 24K), the X scale and pixel size
+		// changes with latitude
 		
+		// maplet size in pixels
+		px = center_maplet.width();
+		py = center_maplet.height();
+		
+		// post scales for Location class
 		scalex = level.maplet_dlong() / px;
 		scaley = level.maplet_dlat() / py;
 		
-		offx = (int) (location.fx() * px);
-		offy = (int) (location.fy() * py);
+		// location of center spot in pixel counts
+		// same sign as maplet_x/y
+		offx = (int) (fx * px);
+		offy = (int) (fy * py);
 		
-		// This puts the chosen location in the
+		// This puts the chosen location within the
 		// center tile in the center of the canvas.
-		ox = cx - offx;
+		ox = cx - (px - offx);
 		oy = cy - (py - offy);
 		
 		// This centers the center tile.
@@ -261,6 +213,8 @@ public class MyView extends View {
 		//oy = (ch - py )/2;
 		
 		canvas.drawBitmap(center_maplet.map, ox, oy, null);
+		
+		//drawBox ( canvas, ox, oy, px, py );
 		
 		// counts from left to right
 		nx1 = - ( ox + (px - 1)) / px;
@@ -270,38 +224,22 @@ public class MyView extends View {
 		ny1 = - ( oy + (py - 1)) / py;
 		ny2 = + ( ch - (oy + py) + (py - 1)) / py;
 		
-		//msg1 = "cwh = " + cw + " " + ch;
-		//msg1 = "fx = " + my_fx + " " + my_fy;
-		//msg2 = "px = " + px + " " + py;
-		//msg3 = "offx = " + offx + " " + offy;
-		//msg4 = "ox = " + ox + " " + oy;
-		
-		//msg2 = "nx1,nx2 = " + nx1 + " " + nx2;
-		//msg3 = "ny1,ny2 = " + ny1 + " " + ny2;
-		
-		/*
-		ox = ox + draw_tile.getWidth();
-		oy = ch - draw_tile.getHeight();
-		canvas.drawBitmap(draw_tile.map, ox, oy, null);
-		*/
-		
-		/*
-		int xx = 1;
-		int yy = 1;
-		tpqTile extra = new tpqTile ( draw_tile.x +xx, draw_tile.y +yy );
-		ex = ox + xx * extra.getWidth();
-		ey = oy + yy * extra.getHeight();
-		canvas.drawBitmap(extra.map, ex, ey, null);
-		*/
+		// kill loop that follows
+		// (so we just display the center)
+		// if ( true ) return;
+		// nx1 = nx2 = 0;
+		// ny1 = ny2 = 0;
 		
 		for ( int xx = nx1; xx <= nx2; xx++ ) {
 			for ( int yy = ny1; yy <= ny2; yy++ ) {
 				if ( xx == 0 && yy == 0 ) {
 					continue;
 				}
-				tpqTile extra = getTile ( center_maplet.x +xx, center_maplet.y +yy );
+				Maplet extra = level.maplet_lookup ( maplet_x - xx, maplet_y - yy );
+				
 				ex = ox + xx * px;
 				ey = oy + yy * py;
+				
 				if ( extra == null ) {
 					// canvas.drawText("MAP", ex, ey, myPaint);
 				    continue;
@@ -309,12 +247,13 @@ public class MyView extends View {
 				canvas.drawBitmap(extra.map, ex, ey, null);
 			}
 		}
+		
+		marker ( canvas, cx, cy );
 
-		// A great way to do some debugging
-		// canvas.drawText(msg1, 100, 100, myPaint);
-		// canvas.drawText(msg2, 100, 150, myPaint);
-		// canvas.drawText(msg3, 100, 200, myPaint);
-		// canvas.drawText(msg4, 100, 250, myPaint);
+		// Put debug info on top of the map.
+		// for ( int i=0; i< msg_index; i++ ) {
+		// 	canvas.drawText(msg[i], 100, 100 + i * 30, myPaint);
+		// }
 	}
 
 	public void handle_move ( int dx, int dy ) {

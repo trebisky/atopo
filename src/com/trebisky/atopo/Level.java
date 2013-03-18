@@ -18,6 +18,8 @@ public class Level {
 	
 	private static Level_info cur_level;
 	
+	private FileCache file_cache;
+	
 	private class Level_info {
 		public String path;
 		public String prefix;
@@ -36,7 +38,9 @@ public class Level {
 		// maps per degree (for level).
 		public int num_maps_long, num_maps_lat;
 		
-		private String find_map_to_probe () {
+		private MapletCache maplet_cache;
+		
+		private String map_to_probe () {
 			
 			if ( onefile != null ) {
 				return onefile;
@@ -72,7 +76,7 @@ public class Level {
 			String probe_map;
 			tpqFile tpq;
 			
-			probe_map = find_map_to_probe();
+			probe_map = map_to_probe();
 			
 			if ( probe_map == null ) {
 				MyView.Log ( "Probe fails");
@@ -84,7 +88,7 @@ public class Level {
 			// if ( true ) return;
 			
 			// tpq = new tpqFile ( probe_path );
-			tpq = MyView.file_cache().get(probe_map);
+			tpq = file_cache.fetch(probe_map);
 			
 			if ( ! tpq.isvalid() ) {
 				MyView.Log ( "Probe fails, bad TPQ: " + probe_map);
@@ -104,8 +108,8 @@ public class Level {
 			maplet_dlong = map_long / num_long;
 			maplet_dlat = map_lat / num_lat;
 				
-			num_maps_long = (int) ( 0.9999 / map_long);
-			num_maps_lat = (int) (0.9999 / map_lat);
+			num_maps_long = (int) ( 1.0002 / map_long);
+			num_maps_lat = (int) ( 1.0002 / map_lat);
 		}
 		
 		public Level_info ( int l, String p, String extra ) {
@@ -118,14 +122,70 @@ public class Level {
 				prefix = extra;
 			}
 			
+			maplet_cache = new MapletCache ();
+			
 			// keep file_cache from blowing up.
 			cur_level = this;
 			
 			probe_map();
 		}
 	}
+	// End of Level_info class.
+	
+	// Used in Location class to probe new centers.
+	// never fetches Maplets, only tpqFile object
+	public tpqFile fetch_map ( String arg ) {
+		return file_cache.fetch(arg);
+	}
+	
+	// Arguments are world maplet x,y
+	// origin in the lower left corner.
+	public Maplet maplet_lookup ( int world_x, int world_y ) {
+		Maplet rv;
+		tpqFile tpq;
+		int sheet_x, sheet_y;
+		int map_x, map_y;
+		int idx;
+		String name;
+		
+		// MyView.Log( "maplet_lookup: " + world_x + " " + world_y );
+		rv = cur_level.maplet_cache.fetch( world_x, world_y);
+		if ( rv != null )
+			return rv;
+		
+		name = encode_map_i ( world_x, world_y );
+		// MyView.Log ( "encoded map name: " + name );
+		tpq = fetch_map ( name );
+		
+		// world_x comes in counting right to left.
+		// sheet_x needs to count from left to right.
+		map_x = world_x / cur_level.num_long;
+		sheet_x = world_x - map_x * cur_level.num_long;
+		sheet_x = cur_level.num_long - sheet_x - 1;
+		// MyView.Log( "maplet_lookup: mx,sx" + map_x + " " + sheet_x );
+		
+		// world_y comes in counting bottom to top.
+		// sheet_y needs to count from top to botom.
+		map_y = world_y / cur_level.num_lat;
+		sheet_y = world_y - map_y * cur_level.num_lat;
+		sheet_y = cur_level.num_lat - sheet_y - 1;
+		// MyView.Log( "maplet_lookup: my,sy" + map_y + " " + sheet_y );
+		
+		// MyView.Log( "Sheet: " + sheet_x + " " + sheet_y );
+		
+		if ( sheet_x < 0 || sheet_x >= cur_level.num_long ) { return null; }
+		if ( sheet_y < 0 || sheet_y >= cur_level.num_lat ) { return null; }
+		
+		idx = sheet_y * cur_level.num_long + sheet_x;
+		// MyView.Log( "maplet_lookup: idx" + idx);
+		
+		rv = cur_level.maplet_cache.load( world_x, world_y, tpq, idx );
+		return rv;
+	}
 	
 	public Level ( String base ) {
+		
+		file_cache = new FileCache ();
 		
 		levels[0] = new Level_info ( L_STATE, base, "us1map1" );
 		levels[1] = new Level_info ( L_ATLAS, base, "us1map2" );
@@ -192,7 +252,7 @@ public class Level {
 	
 	// Figure out which map file the coordinates are in.
 	// form is "n36112a1.tpq"
-	public String find_map ( double _long, double _lat ) {
+	public String encode_map ( double _long, double _lat ) {
 		
 		if ( cur_level.onefile != null )
 			return cur_level.onefile;
@@ -206,6 +266,41 @@ public class Level {
 		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
 		
 		ilong = -ilong;
+		return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
+	}
+	
+	// Figure out which map file the coordinates are in.
+	// Coordinates and world maplet values from lower left.
+	// We see a to h from south to north, as latitude increases
+	// We see 1 to 8 from east to west, as neg longitude increases
+	// form is "n36112a1.tpq"
+	private String encode_map_i ( int world_x, int world_y ) {
+		
+		// number of maplets per degree
+		int nmd_x = cur_level.num_maps_long * cur_level.num_long;
+		int nmd_y = cur_level.num_maps_lat * cur_level.num_lat;
+		
+		if ( cur_level.onefile != null )
+			return cur_level.onefile;
+		
+		// MyView.Log ( "wxy " + world_x + " " + world_y );
+		
+		// This gives integer degrees
+		int ilat = world_y / nmd_y;
+		int ilong = world_x / nmd_x;
+		//MyView.Log ( "ilat/long " + ilat + " " + ilong );
+		
+		// This gives maplet counts in the degree.
+		// divide to give map in the degree.
+		int ix = (world_x - ilong * nmd_x);
+		int iy = (world_y - ilat * nmd_y);
+		// MyView.Log ( "x/y A" + ix + " " + iy );
+		
+		ix = ix / cur_level.num_long;
+		iy = iy / cur_level.num_lat;
+		// MyView.Log ( "x/y B" + ix + " " + iy );
+		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
+		
 		return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
 	}
 	

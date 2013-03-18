@@ -27,7 +27,7 @@ public class tpqFile {
 	private int num_long, num_lat;
 	
 	// number of pixels in each maplet
-	private int num_pixels_long, num_pixels_lat;
+	// private int num_pixels_long, num_pixels_lat;
 	
 	public tpqFile ( String path ) {
 
@@ -107,6 +107,35 @@ public class tpqFile {
 	}
 	public double west () {
 		return west;
+	}
+	
+	public byte [] read_jpeg ( int idx ) {
+		
+		int offset = offset(idx);
+		if ( offset <= 0 ) {
+			MyView.Log("loadBitmap - bad tpq index: " + idx);
+			return null;
+		}
+	
+		int length = size(idx);
+		if ( rfile == null ) {
+			MyView.Log("loadBitmap - bad tpq rfile");
+			return null;
+		}
+	
+		byte[] jpeg_data = new byte[length];
+
+		try {
+			rfile.seek(offset);
+			rfile.read(jpeg_data, 0, length);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			// e.printStackTrace();
+			MyView.Log("loadBitmap - bad IO");
+			return null;
+		}
+		
+		return jpeg_data;
 	}
 
 	// read 2 bytes
@@ -221,13 +250,13 @@ public class tpqFile {
 		return num_lat;
 	}
 	
-	public int num_pixels_long () {
-		return num_pixels_long;
-	}
+	//public int num_pixels_long () {
+	//	return num_pixels_long;
+	//}
 	
-	public int num_pixels_lat () {
-		return num_pixels_lat;
-	}
+	//public int num_pixels_lat () {
+	//	return num_pixels_lat;
+	//}
 }
 
 // THE END

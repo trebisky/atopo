@@ -1,28 +1,29 @@
 package com.trebisky.atopo;
 
-import android.util.Log;
-// XXX which one do I really want?
+// XXX which version do I really want?
 // Apparently the v4 flavor is older and
 // compatible with older android releases, the other one
 // without the v4 requires at least android release 12.
 // import android.util.LruCache;
 import android.support.v4.util.LruCache;
 
-public class FileCache {
+// XXX - Using the LruCache "properly" involves the use of what are
+// called "Java Generics" (the wacky stuff between angle brackets),
+// which I have not yet mastered.
+
+public class FileCache extends LruCache<String, tpqFile> {
 		
-	private int FILE_CACHE_SIZE = 500;
-	private LruCache cache;
+	private final static int FILE_CACHE_SIZE = 500;
 			
 	public FileCache () {
-		cache = new LruCache<String, tpqFile>(FILE_CACHE_SIZE);
+		super (FILE_CACHE_SIZE);
 	}
 	
-	public tpqFile get ( String who ) {
+	public tpqFile fetch ( String who ) {
 		String path;
 		
 		// Log.w ( "atopo", "cache get: " + who );
-		// Log.e ( "atopo", "hamster" );
-		tpqFile rv = (tpqFile) cache.get(who);
+		tpqFile rv = (tpqFile) get(who);
 		if ( rv != null )
 			return rv;
 		
@@ -31,7 +32,7 @@ public class FileCache {
 		
 		rv = new tpqFile ( path );
 		if ( rv.isvalid() ) {
-			cache.put( who, rv );
+			put( who, rv );
 			return rv;
 		}
 		return null;
