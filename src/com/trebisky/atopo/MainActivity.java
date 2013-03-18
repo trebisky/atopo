@@ -1,16 +1,19 @@
 package com.trebisky.atopo;
 
-import java.util.Timer;
 import java.util.TimerTask;
 
 import android.app.Activity;
+import android.content.Context;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
 import android.view.Window;
 import android.view.WindowManager;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements LocationListener {
 
 	// Tucson, Arizona
 	// private final double LONG_START = -110.94;
@@ -56,11 +59,15 @@ public class MainActivity extends Activity {
 	// private final String tpq_dir = "/storage/sdcard1/topo/l5";
 	// private final String tpq_file = "/storage/sdcard1/topo/l5/n36112b2.tpq";
 	
+	private LocationManager locationManager;
+	
+	private final int gps_delay = 10 * 1000;
+	
 	private final int delay = 2 * 1000;
 	
 	private MyView view;
 	private Level level; 
-	private Location location;
+	private MyLocation location;
 
 	private static Handler handle = new Handler();
 
@@ -100,6 +107,12 @@ public class MainActivity extends Activity {
 		// / getWindowManager().getDefaultDisplay().getWidth();
 		// float scaleY = (float) frameBufferHeight
 		// / getWindowManager().getDefaultDisplay().getHeight();
+		
+		// Fire up GPS
+		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                        gps_delay, 0, this);
+
 
 		view = new MyView(this);
 		
@@ -110,7 +123,7 @@ public class MainActivity extends Activity {
 		// level.set_atlas ();
 		// level.set_state ();
 		
-		location = new Location ( level );
+		location = new MyLocation ( level );
 		location.set (LONG_START,LAT_START);
 		
 		view.setup ( level, location );
@@ -131,6 +144,50 @@ public class MainActivity extends Activity {
 		// getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
+	
+	@Override
+    public void onPause() {
+            super.onPause();
+
+            locationManager.removeUpdates(this);
+    }
+
+    @Override
+    public void onResume() {
+            super.onResume();
+
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                            gps_delay, 0, this);
+    }
+
+	 public void onLocationChanged(Location loc) {
+
+         double lat = loc.getLatitude();
+         double lng = loc.getLongitude();
+         
+         location.set ( lng, lat );
+         
+         view.invalidate();
+ }
+
+	@Override
+	public void onProviderDisabled(String arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onProviderEnabled(String arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onStatusChanged(String arg0, int arg1, Bundle arg2) {
+		// TODO Auto-generated method stub
+		
+	}
+
 }
 
 // THE END

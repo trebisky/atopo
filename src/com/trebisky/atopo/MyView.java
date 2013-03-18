@@ -16,7 +16,7 @@ public class MyView extends View {
 	private static int msg_index;
 	
 	private Level level;
-	private Location location;
+	private MyLocation location;
 	
 	private static final String TAG = "atopo";
 	
@@ -41,7 +41,7 @@ public class MyView extends View {
 	
 	// I call this after instantiation,
 	// could be part of constructor.
-	public void setup ( Level _level, Location _loc ) {
+	public void setup ( Level _level, MyLocation _loc ) {
 		level = _level;
 		location = _loc;
 	}
