@@ -24,7 +24,12 @@ public class Level {
 		public String path;
 		public String prefix;
 		public int level; 
+		
+		// Set only for state and atlas levels
 		public String onefile;
+		
+		public double south;
+		public double east;
 		
 		// overall size of maps in degrees
 		public double map_long, map_lat;
@@ -37,6 +42,10 @@ public class Level {
 		
 		// maps per degree (for level).
 		public int num_maps_long, num_maps_lat;
+		
+		// quads per map
+		// a "quad" is a fixed 1/8 degree unit.
+		public int quad_lat_count, quad_long_count;
 		
 		private MapletCache maplet_cache;
 		
@@ -77,6 +86,7 @@ public class Level {
 			tpqFile tpq;
 			
 			probe_map = map_to_probe();
+			MyView.Log( "Probing map: " + probe_map);
 			
 			if ( probe_map == null ) {
 				MyView.Log ( "Probe fails");
@@ -98,18 +108,36 @@ public class Level {
 			
 			// no need to keep this open after a probe.
 			tpq.close();
-				
+			
 			map_long = tpq.east() - tpq.west();
 			map_lat = tpq.north() - tpq.south();
 				
+			// maplets per map
 			num_long = tpq.num_long();
 			num_lat = tpq.num_lat();
+			//MyView.Log2( "Probing num long/lat: ", num_long, num_lat);
 				
+			// degrees per maplet
 			maplet_dlong = map_long / num_long;
 			maplet_dlat = map_lat / num_lat;
 				
-			num_maps_long = (int) ( 1.0002 / map_long);
-			num_maps_lat = (int) ( 1.0002 / map_lat);
+			// maps per degree
+			// silly for atlas and state levels.
+			// and we get a divide by zero too !!
+			if ( map_long <= 1.02 ) {
+				num_maps_long = (int) ( 1.0002 / map_long);
+				num_maps_lat = (int) ( 1.0002 / map_lat);
+				// number of 1/8 degree quads in a single map
+				// really only needed for 100K series, but will
+				// be accessed for all but state and atlas.
+				quad_long_count = 8 / num_maps_long;
+				quad_lat_count = 8 / num_maps_lat;
+				//MyView.Log2( "Probing num_maps long/lat: ", num_maps_long, num_maps_lat);
+			}
+			
+			// only used for state and altas levels
+			south = tpq.south();
+			east = tpq.east();
 		}
 		
 		public Level_info ( int l, String p, String extra ) {
@@ -148,36 +176,48 @@ public class Level {
 		int idx;
 		String name;
 		
-		// MyView.Log( "maplet_lookup: " + world_x + " " + world_y );
+		MyView.Log( "maplet_lookup: " + world_x + " " + world_y );
 		rv = cur_level.maplet_cache.fetch( world_x, world_y);
 		if ( rv != null )
 			return rv;
 		
-		name = encode_map_i ( world_x, world_y );
-		// MyView.Log ( "encoded map name: " + name );
-		tpq = fetch_map ( name );
+		// special case for state and atlas levels
+		if ( cur_level.onefile != null ) {
+			MyView.Log ( "maplet_lookup: " + cur_level.onefile );
+			tpq = fetch_map ( cur_level.onefile );
+			MyView.Log ( "maplet_lookup: tpq " + tpq );
+			sheet_x = world_x;
+			sheet_y = world_y;
+			MyView.Log2( "maplet_lookup: sheet_xy" , sheet_x, sheet_y);
+		} else {
+			name = encode_map_i ( world_x, world_y );
+			MyView.Log ( "maplet_lookup: " + name );
+			tpq = fetch_map ( name );
+			MyView.Log ( "maplet_lookup: tpq " + tpq );
+			
+			map_x = world_x / cur_level.num_long;
+			map_y = world_y / cur_level.num_lat;
+			MyView.Log( "maplet_lookup: mx,my " + map_x + " " + map_y );
 		
+			sheet_x = world_x - map_x * cur_level.num_long;
+			sheet_y = world_y - map_y * cur_level.num_lat;
+			MyView.Log2( "maplet_lookup: sheet_xy " , sheet_x, sheet_y);
+		}
+		
+		MyView.Log2( "maplet_lookup: num_xy" , cur_level.num_long, cur_level.num_lat );
 		// world_x comes in counting right to left.
-		// sheet_x needs to count from left to right.
-		map_x = world_x / cur_level.num_long;
-		sheet_x = world_x - map_x * cur_level.num_long;
-		sheet_x = cur_level.num_long - sheet_x - 1;
-		// MyView.Log( "maplet_lookup: mx,sx" + map_x + " " + sheet_x );
-		
 		// world_y comes in counting bottom to top.
+		// sheet_x needs to count from left to right.
 		// sheet_y needs to count from top to botom.
-		map_y = world_y / cur_level.num_lat;
-		sheet_y = world_y - map_y * cur_level.num_lat;
+		sheet_x = cur_level.num_long - sheet_x - 1;
 		sheet_y = cur_level.num_lat - sheet_y - 1;
-		// MyView.Log( "maplet_lookup: my,sy" + map_y + " " + sheet_y );
-		
-		// MyView.Log( "Sheet: " + sheet_x + " " + sheet_y );
+		MyView.Log2( "maplet_lookup: sheet_xy " , sheet_x, sheet_y);
 		
 		if ( sheet_x < 0 || sheet_x >= cur_level.num_long ) { return null; }
 		if ( sheet_y < 0 || sheet_y >= cur_level.num_lat ) { return null; }
 		
 		idx = sheet_y * cur_level.num_long + sheet_x;
-		// MyView.Log( "maplet_lookup: idx" + idx);
+		MyView.Log( "maplet_lookup: idx " + idx);
 		
 		rv = cur_level.maplet_cache.load( world_x, world_y, tpq, idx );
 		return rv;
@@ -194,6 +234,41 @@ public class Level {
 		levels[4] = new Level_info ( L_24K, base + "/l5", "n" );
 		
 		set_level ( L_24K );
+	}
+	
+	// Because we don't like negative maplet numbers
+	// we flip longitude sign.
+	// This gives world maplet x increaing to the left.
+	//
+	// Also note that for the state level,
+	// global maplet numbers are useless because
+	// the map edge lies at a value that is not an
+	// even multiple of the maplet grid.
+	
+	public int maplet_x ( double _long ) {
+		if ( cur_level.onefile != null )
+			_long -= cur_level.east;
+		return (int) (- _long / cur_level.maplet_dlong);
+	}
+	
+	public int maplet_y ( double _lat ) {
+		if ( cur_level.onefile != null )
+			_lat -= cur_level.south;
+		return (int) (_lat / cur_level.maplet_dlat);
+	}
+	
+	public double fx ( double _long ) {
+		int mx = maplet_x ( _long );
+		if ( cur_level.onefile != null )
+			_long -= cur_level.east;
+		return (-_long - mx * cur_level.maplet_dlong) / cur_level.maplet_dlong;
+	}
+	
+	public double fy ( double _lat ) {
+		int my = maplet_y ( _lat );
+		if ( cur_level.onefile != null )
+			_lat -= cur_level.south;
+		return (_lat - my * cur_level.maplet_dlat) / cur_level.maplet_dlat;
 	}
 	
 	public int num_long () {
@@ -248,37 +323,69 @@ public class Level {
 		set_level ( cur_level.level + 1 );
 	}
 
-	final String[] lat_code = {"a", "b", "c", "d", "e", "f", "g", "h" };
-	
 	// Figure out which map file the coordinates are in.
 	// form is "n36112a1.tpq"
+	// Called when we only want to get into from the
+	// map header.  Used in Location.check_map to verify
+	// that maps exist under a given long, lat and in
+	// MyView.onDraw to get header info for the center
+	// maplet.
 	public String encode_map ( double _long, double _lat ) {
 		
-		if ( cur_level.onefile != null )
-			return cur_level.onefile;
+		return encode_map_i ( maplet_x(_long), maplet_y(_lat) );
+		
+		//if ( cur_level.onefile != null )
+		//	return cur_level.onefile;
 			
-		int ilat = (int) _lat;
-		int ilong = (int) _long;
+		//int ilat = (int) _lat;
+		//int ilong = (int) _long;
 		//Log.w ( "aTopo", "find map: " + ilong + " " + ilat );
 		
-		int ix = (int) (-(_long-ilong) / cur_level.map_long);
-		int iy = (int) ((_lat-ilat) / cur_level.map_lat);
+		//int ix = (int) (-(_long-ilong) / cur_level.map_long);
+		//int iy = (int) ((_lat-ilat) / cur_level.map_lat);
 		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
 		
-		ilong = -ilong;
-		return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
+		//ilong = -ilong;
+		//return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
 	}
 	
+	final String[] lat_code = {"a", "b", "c", "d", "e", "f", "g", "h" };
+	
+	// The following scheme is used to identify maps within a 1x1 degree
+	// area.  First consider the 24K series, where one of 64 different
+	// files need to be identified.  We use a designation like b3,
+	// where the first letter "counts" a-h from south to north.
+	// the second number counts 1-8 from east to west.
+	// So, a1 is the bottom right map, h8 is the top left.
+	// The 100K and 500K series are more interesting,
+	// particularly the 100K.
+	// The code "a1" now designates which of the 7.5 minute
+	// maps would be in the lower right of the map in question.
+	// The 500k series has 1 file per 1x1 degree section
+	//  and it always has the "a1" designation.
+	//  (the files have a 2x2 maplet layout)
+	// The 100k series has 2 files per 1x1 degree section
+	//  they have either an a1 or e1 designation.
+	//  the a1 file is the bottom half of the 1x1
+	//  the e1 file is the top half.
+	//  (the files have a 16x8 maplet layout)
+	// The 24k series has a 5x10 maplet layout.
+	
 	// Figure out which map file the coordinates are in.
+	// This is the workhorse routine used when we are
+	// trying to find a maplet from maplet x/y values.
+	//
 	// Coordinates and world maplet values from lower left.
 	// We see a to h from south to north, as latitude increases
 	// We see 1 to 8 from east to west, as neg longitude increases
 	// form is "n36112a1.tpq"
 	private String encode_map_i ( int world_x, int world_y ) {
 		
+		MyView.Log2 ( "encode: wxy", world_x, world_y );
 		// number of maplets per degree
 		int nmd_x = cur_level.num_maps_long * cur_level.num_long;
 		int nmd_y = cur_level.num_maps_lat * cur_level.num_lat;
+		MyView.Log2 ( "nmd", nmd_x, nmd_y );
 		
 		if ( cur_level.onefile != null )
 			return cur_level.onefile;
@@ -288,16 +395,25 @@ public class Level {
 		// This gives integer degrees
 		int ilat = world_y / nmd_y;
 		int ilong = world_x / nmd_x;
-		//MyView.Log ( "ilat/long " + ilat + " " + ilong );
+		MyView.Log ( "encode: ilat/long " + ilat + " " + ilong );
+		
+		int ix = world_x / cur_level.num_long - ilong * cur_level.num_maps_long;
+		int iy = world_y / cur_level.num_lat - ilat * cur_level.num_maps_lat;
+		MyView.Log2 ( "encode: ixy", ix, iy );
+		
+		// only needed for 100K
+		ix *= cur_level.quad_long_count;
+		iy *= cur_level.quad_lat_count;
+		MyView.Log2 ( "encode: quad ixy", ix, iy );
 		
 		// This gives maplet counts in the degree.
 		// divide to give map in the degree.
-		int ix = (world_x - ilong * nmd_x);
-		int iy = (world_y - ilat * nmd_y);
+		// int ix = (world_x - ilong * nmd_x);
+		// int iy = (world_y - ilat * nmd_y);
 		// MyView.Log ( "x/y A" + ix + " " + iy );
 		
-		ix = ix / cur_level.num_long;
-		iy = iy / cur_level.num_lat;
+		// ix = ix / cur_level.num_long;
+		// iy = iy / cur_level.num_lat;
 		// MyView.Log ( "x/y B" + ix + " " + iy );
 		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
 		
@@ -305,10 +421,10 @@ public class Level {
 	}
 	
 	public static String base_path () {
-		if ( cur_level == null )
-			MyView.Log ( "cur_level is null");
-		if ( cur_level.path == null )
-			MyView.Log ( "cur_level.path is null");
+		if ( cur_level == null || cur_level.path == null ) {
+			MyView.Log ( "cur_level base_path is broken");
+			return null;
+		}
 		return cur_level.path;
 	}
 

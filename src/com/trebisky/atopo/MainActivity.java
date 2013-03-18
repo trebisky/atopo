@@ -13,8 +13,15 @@ import android.view.Menu;
 import android.view.Window;
 import android.view.WindowManager;
 
+// A note on map scales.
+// for the 24K series at least, a pixel scale of 112 dots per inch
+//   will match the original scale on paper.
+// The Xoom, with close to 150 dpi will be somewhat, although
+//   not drastically denser.
+
 public class MainActivity extends Activity implements LocationListener {
 
+	private final boolean run_gps = false;
 	// Tucson, Arizona
 	// private final double LONG_START = -110.94;
 	// private final double LAT_START = 32.27;
@@ -110,18 +117,19 @@ public class MainActivity extends Activity implements LocationListener {
 		
 		// Fire up GPS
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+		if ( run_gps ) {
+	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
                         gps_delay, 0, this);
-
+		}
 
 		view = new MyView(this);
 		
 		level = new Level ( tpq_base );
-		level.set_24k ();
-		//  level.set_100k ();
+		// level.set_24k ();
+		// level.set_100k ();
 		// level.set_500k ();
 		// level.set_atlas ();
-		// level.set_state ();
+		level.set_state ();
 		
 		location = new MyLocation ( level );
 		location.set (LONG_START,LAT_START);
@@ -156,7 +164,8 @@ public class MainActivity extends Activity implements LocationListener {
     public void onResume() {
             super.onResume();
 
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+            if ( run_gps )
+	            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
                             gps_delay, 0, this);
     }
 

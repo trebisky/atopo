@@ -36,7 +36,7 @@ public class tpqFile {
 		    file_size = tpqfile.length();
 		    rfile = new RandomAccessFile(tpqfile, "r");
 		} catch (FileNotFoundException e) {
-		    // e.printStackTrace();
+			MyView.Log("tpqFile open fails: " + tpqfile);
 			n_index = 0;
 			return;
 		}
@@ -112,14 +112,24 @@ public class tpqFile {
 	public byte [] read_jpeg ( int idx ) {
 		
 		int offset = offset(idx);
+		int length = size(idx);
 		if ( offset <= 0 ) {
 			MyView.Log("loadBitmap - bad tpq index: " + idx);
 			return null;
 		}
+		
+		if ( ! is_open ) {
+		    try {
+				rfile = new RandomAccessFile(tpqfile, "r");
+			} catch (FileNotFoundException e) {
+				MyView.Log("read_jpeg - tpq file open fails");
+				return null;
+			}
+		}
 	
-		int length = size(idx);
+		// never happens
 		if ( rfile == null ) {
-			MyView.Log("loadBitmap - bad tpq rfile");
+			MyView.Log("load_jpeg - bad tpq rfile");
 			return null;
 		}
 	

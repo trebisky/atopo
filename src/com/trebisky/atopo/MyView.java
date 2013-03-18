@@ -23,6 +23,14 @@ public class MyView extends View {
 	public static void Log ( String msg ) {
 		Log.e ( TAG, msg );
 	}
+	
+	public static void Log2 ( String msg, int a, int b ) {
+		Log.e ( TAG, msg + " " + a + " " + b );
+	}
+	
+	public static void Log2d ( String msg, double a, double b ) {
+		Log.e ( TAG, msg + " " + a + " " + b );
+	}
 
 	private Paint myPaint;
 
@@ -95,14 +103,14 @@ public class MyView extends View {
 		int cx, cy; // center of canvas
 		double fx, fy;
 		
-		String bad = "NULL";
-		
 		int px, py;
 		int offx, offy;
 		int nx1, nx2;
 		int ny1, ny2;
 		
 		Maplet center_maplet;
+		
+		final boolean show_boxes = true;
 
 		// Sometimes this shows through
 		// as narrow vertical blue lines
@@ -123,7 +131,7 @@ public class MyView extends View {
 		// Figure out which map file the coordinates are in.
 		// form is something like "n36112a1"
 		String map = level.encode_map ( center_long, center_lat );
-		Log ( "Draw: " + map + " " + center_long + " " + center_lat );
+		//Log ( "Draw: " + map + " " + center_long + " " + center_lat );
 				
 		// fetch/read map header
 		tpqFile center_tpq = level.fetch_map(map);
@@ -131,28 +139,14 @@ public class MyView extends View {
 			return;
 		}
 		
-		// from map edge (lower left)
-		//double dlong = center_long - center_tpq.west();
-		//double dlat = center_lat - center_tpq.south();
-		
-		// size of a maplet in degrees, this level.
-		double m_dlong = level.maplet_dlong();
-		double m_dlat = level.maplet_dlat();
-		
 		// world maplet x/y from lower right
 		// X increasing to left, Y increasing up.
-		int maplet_x = - (int) (center_long / m_dlong);
-		int maplet_y = (int) (center_lat / m_dlat);
+		int maplet_x = level.maplet_x(center_long);
+		int maplet_y = level.maplet_y(center_lat);
+		//Log ( "Draw: " + map + " " + maplet_x + " " + maplet_y );
 		
-		Log ( "Draw: " + map + " " + maplet_x + " " + maplet_y );
-		
-		// Within maplet, from lower left
-		// Log ( "center " +center_long + " " + center_lat );
-		// Log ( "maplet_x,y " +maplet_x + " " + maplet_y );
-		// Log ( "m_dlong/lat = " + m_dlong + " " + m_dlat );
-		
-		fx = (-center_long - maplet_x * m_dlong) / m_dlong;
-		fy = (center_lat - maplet_y * m_dlat) / m_dlat;
+		fx = level.fx(center_long);
+		fy = level.fy(center_lat);
 		
 		// canvas size
 		cw = canvas.getWidth();
@@ -177,6 +171,7 @@ public class MyView extends View {
 
 		//Log.w(TAG, "in onDraw " + draw_tile);
 		if (center_maplet == null) {
+			String bad = "NULL";
 			int tx = cx - (int) myPaint.measureText(bad);
 			canvas.drawText(bad, tx, cy, myPaint);
 			return;
@@ -245,6 +240,18 @@ public class MyView extends View {
 				    continue;
 				}
 				canvas.drawBitmap(extra.map, ex, ey, null);
+			}
+		}
+		
+		// Must do this after drawing all maplets or the lines
+		// that draw the box outlines get hidden
+		if ( show_boxes ) {
+			for ( int xx = nx1; xx <= nx2; xx++ ) {
+				for ( int yy = ny1; yy <= ny2; yy++ ) {
+					ex = ox + xx * px;
+					ey = oy + yy * py;
+					drawBox ( canvas, ex, ey, px, py );
+				}
 			}
 		}
 		
