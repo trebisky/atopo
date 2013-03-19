@@ -120,7 +120,7 @@ public class MyView extends View {
 		
 		Maplet center_maplet;
 		
-		final boolean show_boxes = true;
+		final boolean show_boxes = false;
 
 		// Sometimes this shows through
 		// as narrow vertical blue lines
