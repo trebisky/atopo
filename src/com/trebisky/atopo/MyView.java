@@ -41,6 +41,7 @@ public class MyView extends View {
 		myPaint = new Paint();
 		myPaint.setColor(Color.BLACK);
 		myPaint.setTextSize(20);
+		myPaint.setStyle(Paint.Style.STROKE);
 	}
 	
 	// I call this after instantiation,
@@ -85,9 +86,22 @@ public class MyView extends View {
 		canvas.drawLine ( ox, oy+py, ox+px, oy+py, myPaint );
 	}
 	
+	private int marker_type;
+	
+	public void marker_type ( int arg ) {
+		marker_type = arg;
+	}
+	
 	private void marker ( Canvas canvas, int x, int y ) {
-		canvas.drawLine ( x-20, y, x+20, y, myPaint );
-		canvas.drawLine ( x, y-20, x, y+20, myPaint );
+		// type 0 is blank - no marker
+		if ( marker_type == 1 ) {
+			canvas.drawLine ( x-15, y, x+15, y, myPaint );
+			canvas.drawLine ( x, y-15, x, y+15, myPaint );
+		} else if ( marker_type == 2 ){
+			canvas.drawLine ( x-15, y, x+15, y, myPaint );
+			canvas.drawLine ( x, y-15, x, y+15, myPaint );
+			canvas.drawCircle ( x, y, 20, myPaint );
+		}
 	}
 	
 	@Override
@@ -185,7 +199,7 @@ public class MyView extends View {
 		px = center_maplet.width();
 		py = center_maplet.height();
 		
-		// post scales for Location class
+		// post values for motion scaling
 		scalex = level.maplet_dlong() / px;
 		scaley = level.maplet_dlat() / py;
 		
@@ -331,14 +345,14 @@ public class MyView extends View {
 	private int motion_count = 0;
 	
 	public void check_level_change () {
-		Log2 ( "Transition: ", firstd, lastd );
+		// Log2 ( "Transition: ", firstd, lastd );
 		if ( lastd - firstd > 1000 ) {
-			Level.down();
-			invalidate();
+			if ( level.down() )
+				invalidate();
 		}
 		if ( lastd - firstd < -1000 ) {
-			Level.up();
-			invalidate();
+			if ( level.up() )
+				invalidate();
 		}
 	}
 	
@@ -364,7 +378,7 @@ public class MyView extends View {
 			}
 			
 			if ( motion_count > 0 ) {
-				Log ( "Move " + motion_count + " ---> ZERO! (up)" );
+				// Log ( "Move " + motion_count + " ---> ZERO! (up)" );
 				motion_count = 0;
 			}
 			
@@ -375,7 +389,7 @@ public class MyView extends View {
 			int n = e.getPointerCount();
 			
 			if ( n != motion_count ) {
-				Log ( "Move " + motion_count + " ---> " + n );
+				// Log ( "Move " + motion_count + " ---> " + n );
 				motion_count = n;
 			}
 			
@@ -404,6 +418,8 @@ public class MyView extends View {
 			// n == 1
 			
 			// transition from 2 to 1
+			// (note - for some reason,
+			//   the usual transition is 2 to 0)
 			if ( have_first_dist ) {
 				check_level_change ();
 				have_first_dist = false;

@@ -20,6 +20,12 @@ public class Level {
 	
 	private FileCache file_cache;
 	
+	private MyLocation location;
+	
+	public void pass_location ( MyLocation _loc ) {
+		location = _loc;
+	}
+	
 	private class Level_info {
 		public String path;
 		public String prefix;
@@ -185,6 +191,7 @@ public class Level {
 		if ( cur_level.onefile != null ) {
 			//MyView.Log ( "maplet_lookup: " + cur_level.onefile );
 			tpq = fetch_map ( cur_level.onefile );
+			if ( ! tpq.isvalid() ) return null;
 			//MyView.Log ( "maplet_lookup: tpq " + tpq );
 			sheet_x = world_x;
 			sheet_y = world_y;
@@ -193,6 +200,7 @@ public class Level {
 			name = encode_map_i ( world_x, world_y );
 			//MyView.Log ( "maplet_lookup: " + name );
 			tpq = fetch_map ( name );
+			if ( ! tpq.isvalid() ) return null;
 			//MyView.Log ( "maplet_lookup: tpq " + tpq );
 			
 			map_x = world_x / cur_level.num_long;
@@ -311,20 +319,45 @@ public class Level {
 		set_level ( L_24K );
 	}
 	
-	public static void up () {
-		if ( cur_level.level <= 0 )
-			return;
+	// Danger of a race here, what if we change cur_level
+	// to a level for which there are no maps, and
+	// an onDraw happens??
+	//
+	// The real fix for this is to overhaul this whole
+	// setup so we can call maplet_x, maplet_y
+	
+	private boolean probe_level ( int lnew ) {
+		Level_info old_level = cur_level;
 		
-		int newl = cur_level.level - 1;
-		cur_level = levels[newl];
+		cur_level = levels[lnew];
+		
+		int wx = maplet_x(location.cur_long());
+		int wy = maplet_y(location.cur_lat());
+		Maplet m = maplet_lookup(wx,wy);
+		
+		if ( m != null )
+			return true;
+		
+		cur_level = old_level;
+		return false;
 	}
 	
-	public static void down () {
-		if ( cur_level.level >= NUM_LEVELS - 1 )
-			return;
+	public boolean up () {
+		if ( cur_level.level <= 0 )
+			return false;
 		
-		int newl = cur_level.level + 1;
-		cur_level = levels[newl];
+		if ( probe_level(cur_level.level-1) )
+			return true;
+		return false;
+	}
+	
+	public boolean down () {
+		if ( cur_level.level >= NUM_LEVELS - 1 )
+			return false;
+		
+		if ( probe_level(cur_level.level+1) )
+			return true;
+		return false;
 	}
 
 	// Figure out which map file the coordinates are in.
@@ -338,19 +371,6 @@ public class Level {
 		
 		return encode_map_i ( maplet_x(_long), maplet_y(_lat) );
 		
-		//if ( cur_level.onefile != null )
-		//	return cur_level.onefile;
-			
-		//int ilat = (int) _lat;
-		//int ilong = (int) _long;
-		//Log.w ( "aTopo", "find map: " + ilong + " " + ilat );
-		
-		//int ix = (int) (-(_long-ilong) / cur_level.map_long);
-		//int iy = (int) ((_lat-ilat) / cur_level.map_lat);
-		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
-		
-		//ilong = -ilong;
-		//return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
 	}
 	
 	final String[] lat_code = {"a", "b", "c", "d", "e", "f", "g", "h" };
@@ -410,18 +430,8 @@ public class Level {
 		iy *= cur_level.quad_lat_count;
 		//MyView.Log2 ( "encode: quad ixy", ix, iy );
 		
-		// This gives maplet counts in the degree.
-		// divide to give map in the degree.
-		// int ix = (world_x - ilong * nmd_x);
-		// int iy = (world_y - ilat * nmd_y);
-		// MyView.Log ( "x/y A" + ix + " " + iy );
-		
-		// ix = ix / cur_level.num_long;
-		// iy = iy / cur_level.num_lat;
-		// MyView.Log ( "x/y B" + ix + " " + iy );
-		//Log.w ( "aTopo", "find map(i): " + ix + " " + iy );
-		
-		return cur_level.prefix + ilat + ilong + lat_code[iy] + (ix+1);
+		// note -- must ensure longitude gets output with 3 digits
+		return cur_level.prefix + ilat + String.format("%03d",ilong) + lat_code[iy] + (ix+1);
 	}
 	
 	public static String base_path () {

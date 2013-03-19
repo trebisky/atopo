@@ -33,9 +33,11 @@ public class FileCache extends LruCache<String, tpqFile> {
 		rv = new tpqFile ( path );
 		if ( rv.isvalid() ) {
 			put( who, rv );
-			return rv;
 		}
-		return null;
+		// if not valid, let caller discover
+		// a null pointer will blow him up
+		// if he tests via isvalid()
+		return rv;
 	}
 
 }

@@ -1,5 +1,6 @@
 package com.trebisky.atopo;
 
+import java.util.Timer;
 import java.util.TimerTask;
 
 import android.app.Activity;
@@ -21,7 +22,9 @@ import android.view.WindowManager;
 
 public class MainActivity extends Activity implements LocationListener {
 
+	// private final boolean run_gps = true;
 	private final boolean run_gps = false;
+	
 	// Tucson, Arizona
 	// private final double LONG_START = -110.94;
 	// private final double LAT_START = 32.27;
@@ -70,24 +73,33 @@ public class MainActivity extends Activity implements LocationListener {
 	
 	private final int gps_delay = 10 * 1000;
 	
-	private final int delay = 2 * 1000;
+	private final int delay = 500;
 	
 	private MyView view;
 	private Level level; 
 	private MyLocation location;
 
 	private static Handler handle = new Handler();
+	
+	private int marker_blink = 0;
 
 	// This runs in its own thread, so no UI updates here.
+	// XXX we want to change the marker to indicate if the
+	// GPS is active or not.
 	class tickTask extends TimerTask {
 		@Override
 		public void run() {
-			//view.nextFile();
+			
+			if ( marker_blink == 0 )
+				view.marker_type ( 1 );
+			else
+				view.marker_type ( 2 );
+			marker_blink = 1 - marker_blink;
 
 			// We invalidate the view, which forces an onDraw()
 			handle.post(new Runnable() {
 				public void run() {
-					// view.invalidate();
+					view.invalidate();
 				}
 			});
 		}
@@ -134,12 +146,14 @@ public class MainActivity extends Activity implements LocationListener {
 		location = new MyLocation ( level );
 		location.set (LONG_START,LAT_START);
 		
+		level.pass_location ( location );
+		
 		view.setup ( level, location );
 		
 		setContentView(view);
 
-		//Timer timer = new Timer();
-		//timer.schedule(new tickTask(), 0, delay);
+		Timer timer = new Timer();
+		timer.schedule(new tickTask(), 0, delay);
 
 		// PowerManager powerManager = (PowerManager)
 		// getSystemService(Context.POWER_SERVICE);
