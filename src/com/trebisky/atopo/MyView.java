@@ -37,10 +37,6 @@ public class MyView extends View {
 	// degrees per pixel
 	private double scalex, scaley;
 
-	// motion stuff ...
-	private boolean have_last = false;
-	private int lastx, lasty;
-	
 	private void init() {
 		myPaint = new Paint();
 		myPaint.setColor(Color.BLACK);
@@ -272,7 +268,78 @@ public class MyView extends View {
 		
 		location.jog ( -delta_long,  delta_lat );
 		
-		this.invalidate();
+		invalidate();
+	}
+	
+	private void dump_event ( MotionEvent e ) {
+		int action = e.getAction();
+		String msg = "Motion ";
+		
+		// Too much noise with these
+		// if ( action == MotionEvent.ACTION_MOVE ) { return; }
+		
+		if ( action == MotionEvent.ACTION_DOWN ) {
+			msg += "Down ";
+		} else if ( action == MotionEvent.ACTION_MOVE ) {
+			msg += "Move ";
+		} else if ( action == MotionEvent.ACTION_UP ) {
+			msg += "Up " ;
+		} else if ( action == MotionEvent.ACTION_POINTER_DOWN ) {
+			msg += "Pointer Down ";
+		} else if ( action == MotionEvent.ACTION_POINTER_UP ) {
+			msg += "Pointer Up ";
+		} else if ( action == MotionEvent.ACTION_POINTER_1_DOWN ) {
+			msg += "Pointer 1 Down ";
+		} else if ( action == MotionEvent.ACTION_POINTER_1_UP ) {
+			msg += "Pointer 1 Up ";
+		} else if ( action == MotionEvent.ACTION_POINTER_2_DOWN ) {
+			msg += "Pointer 2 Down ";
+		} else if ( action == MotionEvent.ACTION_POINTER_2_UP ) {
+			msg += "Pointer 2 Up ";
+		} else if ( action == MotionEvent.ACTION_POINTER_3_DOWN ) {
+			msg += "Pointer 3 Down ";
+		} else if ( action == MotionEvent.ACTION_POINTER_3_UP ) {
+			msg += "Pointer 3 Up ";
+		} else if ( action == MotionEvent.ACTION_CANCEL ) {
+			msg += "Cancel ";
+		} else {
+			msg += "?" + action + " ";
+		}
+		
+		int n = e.getPointerCount();
+		msg += n;
+		
+		Log ( msg );
+	}
+	
+	// None of what goes on in the following is documented well
+	// Using the above event dumper and experimenting is the
+	// only possible way to figure this out.
+	// I never get a plain old ACTION_POINTER_UP/DOWN event,
+	// but I do get the deprecated 1/2/3 flavor (go figure).
+	// The MOVE events tell the story with accurate counts
+	// and I do always get ACTION UP/DOWN wrapped around moves.
+	
+	// motion stuff ...
+	private boolean have_first = false;
+	private boolean have_first_dist = false;
+	
+	private int firstx, firsty;
+	private int firstd;
+	private int lastd;
+	
+	private int motion_count = 0;
+	
+	public void check_level_change () {
+		Log2 ( "Transition: ", firstd, lastd );
+		if ( lastd - firstd > 1000 ) {
+			Level.down();
+			invalidate();
+		}
+		if ( lastd - firstd < -1000 ) {
+			Level.up();
+			invalidate();
+		}
 	}
 	
 	@Override
@@ -281,30 +348,83 @@ public class MyView extends View {
 		int action = e.getAction();
 		int x, y;
 		
+		// dump_event ( e );
+		
 		if ( action == MotionEvent.ACTION_DOWN ) {
 			//Log.w(TAG,"Touch - down");
-			have_last = false;	// really !
+			have_first = false;	// really !
+			have_first_dist = false;
 			return true;
 		} else if ( action == MotionEvent.ACTION_UP ) {
 			//Log.w(TAG,"Touch - up");
-			have_last = false;
+			
+			// Common!  Transition 2 --> 0
+			if ( have_first_dist ) {
+				check_level_change ();
+			}
+			
+			if ( motion_count > 0 ) {
+				Log ( "Move " + motion_count + " ---> ZERO! (up)" );
+				motion_count = 0;
+			}
+			
+			have_first = false;
+			have_first_dist = false;
 			return true;
 		} else if ( action == MotionEvent.ACTION_MOVE ) {
+			int n = e.getPointerCount();
+			
+			if ( n != motion_count ) {
+				Log ( "Move " + motion_count + " ---> " + n );
+				motion_count = n;
+			}
+			
+			if ( n > 2 ) {
+				have_first = false;
+				return true;
+			}
+			
+			if ( n == 2 ) {
+				int dx, dy, d;
+				have_first = false;
+				dx = (int) (e.getX(0) - e.getX(1));
+				dy = (int) (e.getY(0) - e.getY(1));
+				d = dx*dx + dy*dy;
+				
+				if ( ! have_first_dist ) {
+					firstd = d;
+					lastd = d;
+					have_first_dist = true;
+					return true;
+				}
+				lastd = d;
+				return true;
+			}
+			
+			// n == 1
+			
+			// transition from 2 to 1
+			if ( have_first_dist ) {
+				check_level_change ();
+				have_first_dist = false;
+			}
+			
 			x = (int) e.getX();
 			y = (int) e.getY();
 			//Log.w(TAG,"Touch - move: " + x + " " + y);
-			if ( ! have_last ) {
-				lastx = x;
-				lasty = y;
-				have_last = true;
+			if ( ! have_first ) {
+				firstx = x;
+				firsty = y;
+				have_first = true;
 				return true;
 			}
-			handle_move ( x-lastx, y-lasty );
-			lastx = x;
-			lasty = y;
+			handle_move ( x-firstx, y-firsty );
+			firstx = x;
+			firsty = y;
 			return true;
-		} else {
-			return super.onTouchEvent(e);
 		}
+		
+		return super.onTouchEvent(e);
 	}
+	
 }

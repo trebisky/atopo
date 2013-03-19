@@ -86,7 +86,7 @@ public class Level {
 			tpqFile tpq;
 			
 			probe_map = map_to_probe();
-			MyView.Log( "Probing map: " + probe_map);
+			//MyView.Log( "Probing map: " + probe_map);
 			
 			if ( probe_map == null ) {
 				MyView.Log ( "Probe fails");
@@ -176,48 +176,48 @@ public class Level {
 		int idx;
 		String name;
 		
-		MyView.Log( "maplet_lookup: " + world_x + " " + world_y );
+		//MyView.Log( "maplet_lookup: " + world_x + " " + world_y );
 		rv = cur_level.maplet_cache.fetch( world_x, world_y);
 		if ( rv != null )
 			return rv;
 		
 		// special case for state and atlas levels
 		if ( cur_level.onefile != null ) {
-			MyView.Log ( "maplet_lookup: " + cur_level.onefile );
+			//MyView.Log ( "maplet_lookup: " + cur_level.onefile );
 			tpq = fetch_map ( cur_level.onefile );
-			MyView.Log ( "maplet_lookup: tpq " + tpq );
+			//MyView.Log ( "maplet_lookup: tpq " + tpq );
 			sheet_x = world_x;
 			sheet_y = world_y;
-			MyView.Log2( "maplet_lookup: sheet_xy" , sheet_x, sheet_y);
+			//MyView.Log2( "maplet_lookup: sheet_xy" , sheet_x, sheet_y);
 		} else {
 			name = encode_map_i ( world_x, world_y );
-			MyView.Log ( "maplet_lookup: " + name );
+			//MyView.Log ( "maplet_lookup: " + name );
 			tpq = fetch_map ( name );
-			MyView.Log ( "maplet_lookup: tpq " + tpq );
+			//MyView.Log ( "maplet_lookup: tpq " + tpq );
 			
 			map_x = world_x / cur_level.num_long;
 			map_y = world_y / cur_level.num_lat;
-			MyView.Log( "maplet_lookup: mx,my " + map_x + " " + map_y );
+			//MyView.Log( "maplet_lookup: mx,my " + map_x + " " + map_y );
 		
 			sheet_x = world_x - map_x * cur_level.num_long;
 			sheet_y = world_y - map_y * cur_level.num_lat;
-			MyView.Log2( "maplet_lookup: sheet_xy " , sheet_x, sheet_y);
+			//MyView.Log2( "maplet_lookup: sheet_xy " , sheet_x, sheet_y);
 		}
 		
-		MyView.Log2( "maplet_lookup: num_xy" , cur_level.num_long, cur_level.num_lat );
+		//MyView.Log2( "maplet_lookup: num_xy" , cur_level.num_long, cur_level.num_lat );
 		// world_x comes in counting right to left.
 		// world_y comes in counting bottom to top.
 		// sheet_x needs to count from left to right.
 		// sheet_y needs to count from top to botom.
 		sheet_x = cur_level.num_long - sheet_x - 1;
 		sheet_y = cur_level.num_lat - sheet_y - 1;
-		MyView.Log2( "maplet_lookup: sheet_xy " , sheet_x, sheet_y);
+		//MyView.Log2( "maplet_lookup: sheet_xy " , sheet_x, sheet_y);
 		
 		if ( sheet_x < 0 || sheet_x >= cur_level.num_long ) { return null; }
 		if ( sheet_y < 0 || sheet_y >= cur_level.num_lat ) { return null; }
 		
 		idx = sheet_y * cur_level.num_long + sheet_x;
-		MyView.Log( "maplet_lookup: idx " + idx);
+		//MyView.Log( "maplet_lookup: idx " + idx);
 		
 		rv = cur_level.maplet_cache.load( world_x, world_y, tpq, idx );
 		return rv;
@@ -311,16 +311,20 @@ public class Level {
 		set_level ( L_24K );
 	}
 	
-	public void up () {
+	public static void up () {
 		if ( cur_level.level <= 0 )
 			return;
-		set_level ( cur_level.level - 1 );
+		
+		int newl = cur_level.level - 1;
+		cur_level = levels[newl];
 	}
 	
-	public void down () {
+	public static void down () {
 		if ( cur_level.level >= NUM_LEVELS - 1 )
 			return;
-		set_level ( cur_level.level + 1 );
+		
+		int newl = cur_level.level + 1;
+		cur_level = levels[newl];
 	}
 
 	// Figure out which map file the coordinates are in.
@@ -381,11 +385,11 @@ public class Level {
 	// form is "n36112a1.tpq"
 	private String encode_map_i ( int world_x, int world_y ) {
 		
-		MyView.Log2 ( "encode: wxy", world_x, world_y );
+		//MyView.Log2 ( "encode: wxy", world_x, world_y );
 		// number of maplets per degree
 		int nmd_x = cur_level.num_maps_long * cur_level.num_long;
 		int nmd_y = cur_level.num_maps_lat * cur_level.num_lat;
-		MyView.Log2 ( "nmd", nmd_x, nmd_y );
+		//MyView.Log2 ( "nmd", nmd_x, nmd_y );
 		
 		if ( cur_level.onefile != null )
 			return cur_level.onefile;
@@ -395,16 +399,16 @@ public class Level {
 		// This gives integer degrees
 		int ilat = world_y / nmd_y;
 		int ilong = world_x / nmd_x;
-		MyView.Log ( "encode: ilat/long " + ilat + " " + ilong );
+		//MyView.Log ( "encode: ilat/long " + ilat + " " + ilong );
 		
 		int ix = world_x / cur_level.num_long - ilong * cur_level.num_maps_long;
 		int iy = world_y / cur_level.num_lat - ilat * cur_level.num_maps_lat;
-		MyView.Log2 ( "encode: ixy", ix, iy );
+		//MyView.Log2 ( "encode: ixy", ix, iy );
 		
 		// only needed for 100K
 		ix *= cur_level.quad_long_count;
 		iy *= cur_level.quad_lat_count;
-		MyView.Log2 ( "encode: quad ixy", ix, iy );
+		//MyView.Log2 ( "encode: quad ixy", ix, iy );
 		
 		// This gives maplet counts in the degree.
 		// divide to give map in the degree.
