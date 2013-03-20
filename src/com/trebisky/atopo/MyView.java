@@ -15,9 +15,6 @@ public class MyView extends View {
 	private static String[] msg = new String[NUM_MSG];
 	private static int msg_index;
 	
-	private Level level;
-	private MyLocation location;
-	
 	private static final String TAG = "atopo";
 	
 	public static void Log ( String msg ) {
@@ -44,13 +41,6 @@ public class MyView extends View {
 		myPaint.setStyle(Paint.Style.STROKE);
 	}
 	
-	// I call this after instantiation,
-	// could be part of constructor.
-	public void setup ( Level _level, MyLocation _loc ) {
-		level = _level;
-		location = _loc;
-	}
-
 	public MyView(Context context) {
 		super(context);
 		init();
@@ -135,28 +125,28 @@ public class MyView extends View {
 		
 		if ( msg_index > 0 ) return;
 		
-		center_long = location.cur_long();
-		center_lat = location.cur_lat();
+		center_long = MyLocation.cur_long();
+		center_lat = MyLocation.cur_lat();
 		
 		// Figure out which map file the coordinates are in.
 		// form is something like "n36112a1"
-		String map = level.encode_map ( center_long, center_lat );
+		String map = Level.encode_map ( center_long, center_lat );
 		//Log ( "Draw: " + map + " " + center_long + " " + center_lat );
 				
 		// fetch/read map header
-		tpqFile center_tpq = level.fetch_map(map);
+		tpqFile center_tpq = Level.cur_fetch_map(map);
 		if ( ! center_tpq.isvalid() ) {
 			return;
 		}
 		
 		// world maplet x/y from lower right
 		// X increasing to left, Y increasing up.
-		int maplet_x = level.maplet_x(center_long);
-		int maplet_y = level.maplet_y(center_lat);
+		int maplet_x = Level.cur_maplet_x(center_long);
+		int maplet_y = Level.cur_maplet_y(center_lat);
 		//Log ( "Draw: " + map + " " + maplet_x + " " + maplet_y );
 		
-		fx = level.fx(center_long);
-		fy = level.fy(center_lat);
+		fx = Level.fx(center_long);
+		fy = Level.fy(center_lat);
 		
 		// canvas size
 		cw = canvas.getWidth();
@@ -176,7 +166,7 @@ public class MyView extends View {
 		// the loop below handle the 0,0 case
 		
 		// center_maplet = level.maplet_lookup ( sheet_x, sheet_y );
-		center_maplet = level.maplet_lookup ( maplet_x, maplet_y );
+		center_maplet = Level.cur_maplet_lookup ( maplet_x, maplet_y );
 		// Log ( "View mx,my A " +maplet_x + " " + maplet_y );
 
 		//Log.w(TAG, "in onDraw " + draw_tile);
@@ -200,8 +190,8 @@ public class MyView extends View {
 		py = center_maplet.height();
 		
 		// post values for motion scaling
-		scalex = level.maplet_dlong() / px;
-		scaley = level.maplet_dlat() / py;
+		scalex = Level.maplet_dlong() / px;
+		scaley = Level.maplet_dlat() / py;
 		
 		// location of center spot in pixel counts
 		// same sign as maplet_x/y
@@ -240,7 +230,7 @@ public class MyView extends View {
 				if ( xx == 0 && yy == 0 ) {
 					continue;
 				}
-				Maplet extra = level.maplet_lookup ( maplet_x - xx, maplet_y - yy );
+				Maplet extra = Level.cur_maplet_lookup ( maplet_x - xx, maplet_y - yy );
 				
 				ex = ox + xx * px;
 				ey = oy + yy * py;
@@ -280,7 +270,7 @@ public class MyView extends View {
 		delta_long = dx * scalex;
 		delta_lat = dy * scaley;
 		
-		location.jog ( -delta_long,  delta_lat );
+		MyLocation.jog ( -delta_long,  delta_lat );
 		
 		invalidate();
 	}
@@ -347,11 +337,11 @@ public class MyView extends View {
 	public void check_level_change () {
 		// Log2 ( "Transition: ", firstd, lastd );
 		if ( lastd - firstd > 1000 ) {
-			if ( level.down() )
+			if ( Level.down() )
 				invalidate();
 		}
 		if ( lastd - firstd < -1000 ) {
-			if ( level.up() )
+			if ( Level.up() )
 				invalidate();
 		}
 	}

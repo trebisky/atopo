@@ -19,7 +19,7 @@ public class FileCache extends LruCache<String, tpqFile> {
 		super (FILE_CACHE_SIZE);
 	}
 	
-	public tpqFile fetch ( String who ) {
+	public tpqFile fetch ( String base, String who ) {
 		String path;
 		
 		// Log.w ( "atopo", "cache get: " + who );
@@ -27,7 +27,7 @@ public class FileCache extends LruCache<String, tpqFile> {
 		if ( rv != null )
 			return rv;
 		
-		path = Level.base_path() + "/" + who + ".tpq";
+		path = base + "/" + who + ".tpq";
 		//Log.w ( "atopo", "cache path: " + path );
 		
 		rv = new tpqFile ( path );

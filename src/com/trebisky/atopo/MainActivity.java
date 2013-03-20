@@ -76,8 +76,6 @@ public class MainActivity extends Activity implements LocationListener {
 	private final int delay = 500;
 	
 	private MyView view;
-	private Level level; 
-	private MyLocation location;
 
 	private static Handler handle = new Handler();
 	
@@ -136,19 +134,14 @@ public class MainActivity extends Activity implements LocationListener {
 
 		view = new MyView(this);
 		
-		level = new Level ( tpq_base );
-		// level.set_24k ();
-		// level.set_100k ();
-		// level.set_500k ();
-		// level.set_atlas ();
-		level.set_state ();
+		Level.setup ( tpq_base );
+		 Level.set_24k ();
+		// Level.set_100k ();
+		// Level.set_500k ();
+		// Level.set_atlas ();
+		// Level.set_state ();
 		
-		location = new MyLocation ( level );
-		location.set (LONG_START,LAT_START);
-		
-		level.pass_location ( location );
-		
-		view.setup ( level, location );
+		MyLocation.new_position ( LONG_START, LAT_START );
 		
 		setContentView(view);
 
@@ -188,7 +181,7 @@ public class MainActivity extends Activity implements LocationListener {
          double lat = loc.getLatitude();
          double lng = loc.getLongitude();
          
-         location.set ( lng, lat );
+         MyLocation.set ( lng, lat );
          
          view.invalidate();
  }
