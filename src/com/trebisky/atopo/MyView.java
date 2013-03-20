@@ -111,42 +111,6 @@ public class MyView extends View {
 		Maplet center_maplet;
 		
 		final boolean show_boxes = false;
-
-		// Sometimes this shows through
-		// as narrow vertical blue lines
-		// as we scroll into a region with
-		// different pixel width for maplets.
-		canvas.drawColor(Color.BLUE);
-		
-		// A great way to do some debugging
-		for ( int i=0; i< msg_index; i++ ) {
-			canvas.drawText(msg[i], 100, 100 + i * 30, myPaint);
-		}
-		
-		if ( msg_index > 0 ) return;
-		
-		center_long = MyLocation.cur_long();
-		center_lat = MyLocation.cur_lat();
-		
-		// Figure out which map file the coordinates are in.
-		// form is something like "n36112a1"
-		String map = Level.encode_map ( center_long, center_lat );
-		//Log ( "Draw: " + map + " " + center_long + " " + center_lat );
-				
-		// fetch/read map header
-		tpqFile center_tpq = Level.cur_fetch_map(map);
-		if ( ! center_tpq.isvalid() ) {
-			return;
-		}
-		
-		// world maplet x/y from lower right
-		// X increasing to left, Y increasing up.
-		int maplet_x = Level.cur_maplet_x(center_long);
-		int maplet_y = Level.cur_maplet_y(center_lat);
-		//Log ( "Draw: " + map + " " + maplet_x + " " + maplet_y );
-		
-		fx = Level.fx(center_long);
-		fy = Level.fy(center_lat);
 		
 		// canvas size
 		cw = canvas.getWidth();
@@ -155,6 +119,34 @@ public class MyView extends View {
 		// canvas center
 		cx = cw / 2;
 		cy = ch / 2;
+		
+		// Sometimes this shows through
+		// as narrow vertical blue lines
+		// as we scroll into a region with
+		// different pixel width for maplets.
+		canvas.drawColor(Color.BLUE);
+		
+		// A great way to do some debugging
+		for ( int i=0; i< msg_index; i++ ) {
+			canvas.drawText(msg[i], 10, 10+i*40, myPaint);
+		}
+		
+		if ( msg_index > 0 ) return;
+		
+		// Is there a map here ?
+		if ( ! Level.cur_check_map () ) {
+			canvas.drawText("No Map !!", cx-40, cy, myPaint);
+			return;
+		}
+		
+		// world maplet x/y from lower right
+		// X increasing to left, Y increasing up.
+		int maplet_x = Level.cur_maplet_x();
+		int maplet_y = Level.cur_maplet_y();
+		//Log ( "Draw: " + map + " " + maplet_x + " " + maplet_y );
+		
+		fx = Level.cur_fx();
+		fy = Level.cur_fy();
 		
 		// XXX XXX
 		// We really only need to get this here
@@ -189,7 +181,7 @@ public class MyView extends View {
 		px = center_maplet.width();
 		py = center_maplet.height();
 		
-		// post values for motion scaling
+		// update values for motion scaling
 		scalex = Level.maplet_dlong() / px;
 		scaley = Level.maplet_dlat() / py;
 		
@@ -270,7 +262,7 @@ public class MyView extends View {
 		delta_long = dx * scalex;
 		delta_lat = dy * scaley;
 		
-		MyLocation.jog ( -delta_long,  delta_lat );
+		Level.jogpos ( -delta_long,  delta_lat );
 		
 		invalidate();
 	}

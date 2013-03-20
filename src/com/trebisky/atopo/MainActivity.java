@@ -64,7 +64,7 @@ public class MainActivity extends Activity implements LocationListener {
 	// Also I would want this program to "merge" both file collections
 	// if a user had both, allowing them to have an internal set of files
 	// optionally augmented by files on the SD card.
-	private final String tpq_base = "/storage/sdcard1/topo";
+	private final String file_base = "/storage/sdcard1/topo";
 	
 	// private final String tpq_dir = "/storage/sdcard1/topo/l5";
 	// private final String tpq_file = "/storage/sdcard1/topo/l5/n36112b2.tpq";
@@ -134,14 +134,13 @@ public class MainActivity extends Activity implements LocationListener {
 
 		view = new MyView(this);
 		
-		Level.setup ( tpq_base );
+		Level.setup ( file_base, LONG_START, LAT_START );
+		
 		 Level.set_24k ();
 		// Level.set_100k ();
 		// Level.set_500k ();
 		// Level.set_atlas ();
 		// Level.set_state ();
-		
-		MyLocation.new_position ( LONG_START, LAT_START );
 		
 		setContentView(view);
 
@@ -181,7 +180,7 @@ public class MainActivity extends Activity implements LocationListener {
          double lat = loc.getLatitude();
          double lng = loc.getLongitude();
          
-         MyLocation.set ( lng, lat );
+         Level.setpos ( lng, lat );
          
          view.invalidate();
  }

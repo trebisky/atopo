@@ -51,6 +51,9 @@ public class Level {
 	
 	private static Level cur_level;
 	
+	private static double cur_long;
+	private static double cur_lat;
+	
 	// instance constructor
 	
 	public Level ( int l, String p, String extra ) {
@@ -158,9 +161,33 @@ public class Level {
 		
 		return null;
 	}
+	
+	// gps will call this, and we do on startup.
+	public static void setpos ( double _long, double _lat ) {
+		
+		// Before we allow the user to move to a new center location
+		// we want to verify that a map is there (this means it will
+		// never be possible to move a map edge or corner beyond center).
+		if ( ! Level.check_map ( _long, _lat ) ) {
+			MyView.onemsg("No Map at x,y");
+			return;
+		}
+				
+		cur_long = _long;
+		cur_lat = _lat;
+	}
+	
+	public static void jogpos ( double dlong, double dlat ) {
+		double new_long = cur_long + dlong;
+		double new_lat = cur_lat + dlat;
+		
+		if ( check_map ( new_long, new_lat ) ) {
+			setpos ( new_long, new_lat );
+		}
+	}
 		
 	// static methods
-	public static void setup ( String base ) {
+	public static void setup ( String base, double _long, double _lat ) {
 		
 		file_cache = new FileCache ();
 		
@@ -171,6 +198,8 @@ public class Level {
 		levels[4] = new Level ( L_24K, base + "/l5", "n" );
 		
 		set_level ( L_24K );
+		
+		setpos ( _long, _lat );
 	}
 	
 	public static boolean up () {
@@ -201,8 +230,8 @@ public class Level {
 	
 	// instance method
 	private boolean probe () {
-		int wx = maplet_x(MyLocation.cur_long());
-		int wy = maplet_y(MyLocation.cur_lat());
+		int wx = maplet_x(cur_long);
+		int wy = maplet_y(cur_lat);
 		Maplet m = maplet_lookup(wx,wy);
 		return m != null;
 	}
@@ -232,12 +261,18 @@ public class Level {
 		set_level ( L_24K );
 	}
 	
+	public static boolean cur_check_map () {
+		return check_map ( cur_long, cur_lat );
+	}
+	
 	// Called by location class to see if there
 	// is a map under a new center location
 	public static boolean check_map ( double _long, double _lat ) {
 		String map;
 		tpqFile tpq;
 		
+		// Figure out which map file the coordinates are in.
+		// form is something like "n36112a1"
 		map = encode_map ( _long, _lat );
 		tpq = file_cache.fetch ( cur_level.path, map );
 		if ( ! tpq.isvalid() )
@@ -336,12 +371,12 @@ public class Level {
 		return rv;
 	}
 	
-	public static int cur_maplet_x ( double _long ) {
-		return cur_level.maplet_x ( _long );
+	public static int cur_maplet_x () {
+		return cur_level.maplet_x ( cur_long );
 	}
 	
-	public static int cur_maplet_y ( double _lat ) {
-		return cur_level.maplet_y ( _lat );
+	public static int cur_maplet_y () {
+		return cur_level.maplet_y ( cur_lat );
 	}
 	
 	// Because we don't like negative maplet numbers
@@ -365,20 +400,26 @@ public class Level {
 		return (int) (_lat / maplet_dlat);
 	}
 	
-	public static double fx ( double _long ) {
-		int mx = cur_level.maplet_x ( _long );
+	public static double cur_fx () {
+		int mx = cur_level.maplet_x ( cur_long );
+		double xlong = cur_long;
+		
 		if ( cur_level.onefile != null )
-			_long -= cur_level.east;
-		return (-_long - mx * cur_level.maplet_dlong) / cur_level.maplet_dlong;
+			xlong -= cur_level.east;
+		
+		return (-xlong - mx * cur_level.maplet_dlong) / cur_level.maplet_dlong;
 	}
 	
-	public static double fy ( double _lat ) {
-		int my = cur_level.maplet_y ( _lat );
+	public static double cur_fy () {
+		int my = cur_level.maplet_y ( cur_lat );
+		double xlat = cur_lat;
+		
 		if ( cur_level.onefile != null )
-			_lat -= cur_level.south;
-		return (_lat - my * cur_level.maplet_dlat) / cur_level.maplet_dlat;
+			xlat -= cur_level.south;
+		return (xlat - my * cur_level.maplet_dlat) / cur_level.maplet_dlat;
 	}
 	
+	// Needed to calculate scaling for moves.
 	public static double maplet_dlong () {
 		return cur_level.maplet_dlong;
 	}
