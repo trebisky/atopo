@@ -21,8 +21,16 @@ public class MyView extends View {
 		Log.e ( TAG, msg );
 	}
 	
+	public static void Log1 ( String msg, int a ) {
+		Log.e ( TAG, msg + " " + a );
+	}
+	
 	public static void Log2 ( String msg, int a, int b ) {
 		Log.e ( TAG, msg + " " + a + " " + b );
+	}
+	
+	public static void Log3 ( String msg, int a, int b, int c ) {
+		Log.e ( TAG, msg + " " + a + " " + b + " " + c );
 	}
 	
 	public static void Log2d ( String msg, double a, double b ) {
@@ -41,8 +49,12 @@ public class MyView extends View {
 		myPaint.setStyle(Paint.Style.STROKE);
 	}
 	
+	private MainActivity boss;
+	
 	public MyView(Context context) {
 		super(context);
+		
+		boss = (MainActivity) context;
 		init();
 		// TODO Auto-generated constructor stub
 	}
@@ -78,19 +90,31 @@ public class MyView extends View {
 	
 	private int marker_type;
 	
+	// call this to set the marker type
+	// 0 is blank
+	// 1 is small plus
+	// 2 is big plus
+	// 3 is big plus with circle
 	public void marker_type ( int arg ) {
 		marker_type = arg;
 	}
 	
+	private final int M_SMALL = 5;
+	private final int M_BIG = 10;
+	private final int M_CIRCLE = 12;
+	
 	private void marker ( Canvas canvas, int x, int y ) {
 		// type 0 is blank - no marker
 		if ( marker_type == 1 ) {
-			canvas.drawLine ( x-15, y, x+15, y, myPaint );
-			canvas.drawLine ( x, y-15, x, y+15, myPaint );
+			canvas.drawLine ( x-M_SMALL, y, x+M_SMALL, y, myPaint );
+			canvas.drawLine ( x, y-M_SMALL, x, y+M_SMALL, myPaint );
 		} else if ( marker_type == 2 ){
-			canvas.drawLine ( x-15, y, x+15, y, myPaint );
-			canvas.drawLine ( x, y-15, x, y+15, myPaint );
-			canvas.drawCircle ( x, y, 20, myPaint );
+			canvas.drawLine ( x-M_BIG, y, x+M_BIG, y, myPaint );
+			canvas.drawLine ( x, y-M_BIG, x, y+M_BIG, myPaint );
+		} else if ( marker_type == 3 ){
+			canvas.drawLine ( x-M_BIG, y, x+M_BIG, y, myPaint );
+			canvas.drawLine ( x, y-M_BIG, x, y+M_BIG, myPaint );
+			canvas.drawCircle ( x, y, M_CIRCLE, myPaint );
 		}
 	}
 	
@@ -338,6 +362,26 @@ public class MyView extends View {
 		}
 	}
 	
+	private boolean was_a_move = false;
+	private int last_touch = 0;
+	
+	// This works pretty well
+	// a double tap is usually about 150 millisecond
+	// apart.
+	private void check_touch ( MotionEvent e ) {
+		int t1 = (int) e.getDownTime ();
+		int t2 = (int) e.getEventTime ();
+		int dt = t2 - last_touch;
+		last_touch = t2;
+		
+		Log3 ( "Touch: ", t2, dt,  t2-t1 );
+		
+		if ( ! was_a_move && dt > 250 ) {
+			Log ( "toggling GPS" );
+			boss.toggle_gps ();
+		}
+	}
+	
 	@Override
 	public boolean onTouchEvent ( MotionEvent e ) {
 		
@@ -350,9 +394,12 @@ public class MyView extends View {
 			//Log.w(TAG,"Touch - down");
 			have_first = false;	// really !
 			have_first_dist = false;
+			was_a_move = false;
 			return true;
 		} else if ( action == MotionEvent.ACTION_UP ) {
 			//Log.w(TAG,"Touch - up");
+			
+			check_touch ( e );
 			
 			// Common!  Transition 2 --> 0
 			if ( have_first_dist ) {
@@ -416,6 +463,8 @@ public class MyView extends View {
 				have_first = true;
 				return true;
 			}
+			
+			was_a_move = true;
 			handle_move ( x-firstx, y-firsty );
 			firstx = x;
 			firsty = y;

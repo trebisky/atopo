@@ -22,8 +22,8 @@ import android.view.WindowManager;
 
 public class MainActivity extends Activity implements LocationListener {
 
-	// private final boolean run_gps = true;
-	private final boolean run_gps = false;
+	// private final boolean gps_running = true;
+	private boolean gps_running = false;
 	
 	// Tucson, Arizona
 	// private final double LONG_START = -110.94;
@@ -91,7 +91,10 @@ public class MainActivity extends Activity implements LocationListener {
 			if ( marker_blink == 0 )
 				view.marker_type ( 1 );
 			else
-				view.marker_type ( 2 );
+				if ( gps_running )
+					view.marker_type ( 3 );
+				else
+					view.marker_type ( 2 );
 			marker_blink = 1 - marker_blink;
 
 			// We invalidate the view, which forces an onDraw()
@@ -127,9 +130,9 @@ public class MainActivity extends Activity implements LocationListener {
 		
 		// Fire up GPS
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-		if ( run_gps ) {
-	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-                        gps_delay, 0, this);
+		
+		if ( gps_running ) {
+			start_gps ();
 		}
 
 		view = new MyView(this);
@@ -161,18 +164,37 @@ public class MainActivity extends Activity implements LocationListener {
 	
 	@Override
     public void onPause() {
-            super.onPause();
+        super.onPause();
 
+        if ( gps_running )
             locationManager.removeUpdates(this);
     }
 
     @Override
     public void onResume() {
-            super.onResume();
+        super.onResume();
 
-            if ( run_gps )
-	            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-                            gps_delay, 0, this);
+        if ( gps_running )
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                gps_delay, 0, this);
+    }
+    
+    public void start_gps () {
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+            gps_delay, 0, this);
+		gps_running = true;
+    }
+    
+    public void stop_gps () {
+        locationManager.removeUpdates(this);
+		gps_running = false;
+    }
+    
+    public void toggle_gps () {
+    	if ( gps_running )
+    		stop_gps ();
+    	else
+    		start_gps ();
     }
 
 	 public void onLocationChanged(Location loc) {
