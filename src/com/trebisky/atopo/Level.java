@@ -41,11 +41,11 @@ public class Level {
 	private static final int NUM_LEVELS = 5;
 	
 	// XX could perhaps change to a Java enum someday
-	private static final int L_STATE = 0;
-	private static final int L_ATLAS = 1;
-	private static final int L_500K = 2;
-	private static final int L_100K = 3;
-	private static final int L_24K = 4;
+	public static final int L_STATE = 0;
+	public static final int L_ATLAS = 1;
+	public static final int L_500K = 2;
+	public static final int L_100K = 3;
+	public static final int L_24K = 4;
 	
 	private static Level levels[] = new Level[NUM_LEVELS];
 	
@@ -177,6 +177,14 @@ public class Level {
 		cur_lat = _lat;
 	}
 	
+	public static double cur_long () {
+		return cur_long;
+	}
+	
+	public static double cur_lat () {
+		return cur_lat;
+	}
+	
 	public static void jogpos ( double dlong, double dlat ) {
 		double new_long = cur_long + dlong;
 		double new_lat = cur_lat + dlat;
@@ -237,8 +245,12 @@ public class Level {
 	}
 	
 	// XX - no validation
-	private static void set_level ( int arg ) {
+	public static void set_level ( int arg ) {
 		cur_level = levels[arg];
+	}
+	
+	public static int get_level () {
+		return cur_level.level;
 	}
 	
 	public static void set_state () {

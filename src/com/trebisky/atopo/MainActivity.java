@@ -23,7 +23,7 @@ import android.view.WindowManager;
 public class MainActivity extends Activity implements LocationListener {
 
 	// private final boolean gps_running = true;
-	private boolean gps_running = false;
+	private boolean gps_running;
 	
 	// Tucson, Arizona
 	// private final double LONG_START = -110.94;
@@ -73,13 +73,53 @@ public class MainActivity extends Activity implements LocationListener {
 	
 	private final int gps_delay = 10 * 1000;
 	
-	private final int delay = 500;
+	private final int timer_delay = 250;
 	
 	private MyView view;
 
 	private static Handler handle = new Handler();
 	
+	// This function exists because we
+	// cannot make the invalidate call
+	// to trigger a redraw of the view
+	// anyplace but on the UI thread.
+	// This is called from the timer thread.
+	private void post_invalidate () {
+		handle.post(new Runnable() {
+			public void run() {
+				// invalidate the view,
+				// which forces an onDraw()
+				view.invalidate();
+			}
+		});
+	}
+	
+	// This just has to be run on the UI thread too.
+	public void post_gps_toggle () {
+		handle.post(new Runnable() {
+			public void run() {
+				// invalidate the view,
+				// which forces an onDraw()
+				toggle_gps ();
+			}
+		});
+	}
+	
 	private int marker_blink = 0;
+	
+	// Call this at 2 Hz.
+	private void marker_tick () {
+		if ( marker_blink == 0 )
+			view.marker_type ( 1 );
+		else
+			if ( gps_running )
+				view.marker_type ( 3 );
+			else
+				view.marker_type ( 2 );
+		marker_blink = 1 - marker_blink;
+	}
+	
+	private int marker_count = 0;
 
 	// This runs in its own thread, so no UI updates here.
 	// XXX we want to change the marker to indicate if the
@@ -87,27 +127,31 @@ public class MainActivity extends Activity implements LocationListener {
 	class tickTask extends TimerTask {
 		@Override
 		public void run() {
-			
-			if ( marker_blink == 0 )
-				view.marker_type ( 1 );
-			else
-				if ( gps_running )
-					view.marker_type ( 3 );
-				else
-					view.marker_type ( 2 );
-			marker_blink = 1 - marker_blink;
-
-			// We invalidate the view, which forces an onDraw()
-			handle.post(new Runnable() {
-				public void run() {
-					view.invalidate();
-				}
-			});
+			if ( ++marker_count % 2 == 0 ) {
+				marker_tick ();
+			}
+			view.motion_tick ();
+			post_invalidate ();
 		}
 	};
+	
+	@Override
+	public void onSaveInstanceState(Bundle state) {
+		state.putDouble ( "long", Level.cur_long() );
+		state.putDouble ( "lat", Level.cur_lat() );
+		state.putBoolean ( "gps", gps_running );
+		state.putShort ( "level", (short) Level.get_level() );
+		super.onSaveInstanceState(state);
+	}
+	
+	// XXX what about onRestoreInstanceState ???
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		double start_lat;
+		double start_long;
+		short start_level;
+		
 		super.onCreate(savedInstanceState);
 
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -131,24 +175,35 @@ public class MainActivity extends Activity implements LocationListener {
 		// Fire up GPS
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		
+		if ( savedInstanceState != null ) {
+			start_lat = savedInstanceState.getDouble ( "lat" );
+			start_long = savedInstanceState.getDouble ( "long" );
+			gps_running = savedInstanceState.getBoolean ( "gps" );
+			start_level = savedInstanceState.getShort ( "level" );
+		} else {
+			start_lat = LAT_START;
+			start_long = LONG_START;
+			gps_running = false;
+			start_level = Level.L_24K;
+			// start_level = Level.L_100K;
+			// start_level = Level.L_500K;
+			// start_level = Level.L_ATLAS;
+			// start_level = Level.L_STATE;
+		}
+		
 		if ( gps_running ) {
 			start_gps ();
 		}
 
 		view = new MyView(this);
 		
-		Level.setup ( file_base, LONG_START, LAT_START );
-		
-		 Level.set_24k ();
-		// Level.set_100k ();
-		// Level.set_500k ();
-		// Level.set_atlas ();
-		// Level.set_state ();
+		Level.setup ( file_base, start_long, start_lat );
+		Level.set_level ( start_level );
 		
 		setContentView(view);
 
 		Timer timer = new Timer();
-		timer.schedule(new tickTask(), 0, delay);
+		timer.schedule(new tickTask(), 0, timer_delay);
 
 		// PowerManager powerManager = (PowerManager)
 		// getSystemService(Context.POWER_SERVICE);
@@ -180,12 +235,14 @@ public class MainActivity extends Activity implements LocationListener {
     }
     
     public void start_gps () {
+    	MyView.Log ( "turning on GPS" );
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
             gps_delay, 0, this);
 		gps_running = true;
     }
     
     public void stop_gps () {
+    	MyView.Log ( "turning off GPS" );
         locationManager.removeUpdates(this);
 		gps_running = false;
     }
@@ -201,6 +258,14 @@ public class MainActivity extends Activity implements LocationListener {
 
          double lat = loc.getLatitude();
          double lng = loc.getLongitude();
+         // double alt = loc.getAltitude(); // in meters
+         double accuracy = loc.getAccuracy(); // in meters
+    	// MyView.Log ( "GPS accuracy: " + accuracy + " meters" );
+    	// In one test I saw an initial accuracy of 45.6 meters,
+    	// then all subsequent accuracies were 9.5 meters
+    	
+    	// worthless if nearly a kilometer
+    	if ( accuracy > 750.0 ) return;
          
          Level.setpos ( lng, lat );
          

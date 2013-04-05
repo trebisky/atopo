@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -29,14 +30,18 @@ public class MyView extends View {
 		Log.e ( TAG, msg + " " + a + " " + b );
 	}
 	
+	public static void Log2d ( String msg, double a, double b ) {
+		Log.e ( TAG, msg + " " + a + " " + b );
+	}
+	
 	public static void Log3 ( String msg, int a, int b, int c ) {
 		Log.e ( TAG, msg + " " + a + " " + b + " " + c );
 	}
 	
-	public static void Log2d ( String msg, double a, double b ) {
-		Log.e ( TAG, msg + " " + a + " " + b );
+	public static void Log4 ( String msg, int a, int b, int c, int d ) {
+		Log.e ( TAG, msg + " " + a + " " + b + " " + c + " " + d );
 	}
-
+	
 	private Paint myPaint;
 
 	// degrees per pixel
@@ -362,31 +367,59 @@ public class MyView extends View {
 		}
 	}
 	
-	private boolean was_a_move = false;
 	private int last_touch = 0;
+	private int touch_count = 0;
 	
-	// This works pretty well
-	// a double tap is usually about 150 millisecond
-	// apart.
+	// Called on ACTION_UP to see if we
+	// have a double tap to toggle the gps
+	//
+	// The taps in a double tap are usually
+	// about 150 milliseconds apart.
 	private void check_touch ( MotionEvent e ) {
+		
+		// We could use t2-t1 to detect a long touch
 		int t1 = (int) e.getDownTime ();
 		int t2 = (int) e.getEventTime ();
+		
+		// time since last touch.
 		int dt = t2 - last_touch;
 		last_touch = t2;
 		
-		Log3 ( "Touch: ", t2, dt,  t2-t1 );
+		//Log3 ( "Touch: ", t2, dt,  t2-t1 );
 		
-		if ( ! was_a_move && dt > 250 ) {
-			Log ( "toggling GPS" );
-			boss.toggle_gps ();
+		if ( dt > 300 ) {
+			touch_count = 1;
+			Log3 ( "Touch: ", dt,  t2-t1, touch_count );
+			return;
 		}
+		touch_count++;
+		Log3 ( "Touch: ", dt,  t2-t1, touch_count );
 	}
+	
+	// Called from the timer task
+	//  every 250 ms
+	public void motion_tick () {
+		if ( touch_count < 1 ) return;
+		
+		long wait = SystemClock.uptimeMillis() - last_touch;
+		if ( wait < 300 ) return;
+		
+		if ( touch_count == 2 ) {
+			Log ( "toggling GPS" );
+			boss.post_gps_toggle ();
+		}
+		touch_count = 0;
+	}
+	
+	private int down_x, down_y;
 	
 	@Override
 	public boolean onTouchEvent ( MotionEvent e ) {
 		
 		int action = e.getAction();
 		int x, y;
+		int dx, dy;
+		int d; 
 		
 		// dump_event ( e );
 		
@@ -394,12 +427,21 @@ public class MyView extends View {
 			//Log.w(TAG,"Touch - down");
 			have_first = false;	// really !
 			have_first_dist = false;
-			was_a_move = false;
+			
+			down_x = (int) e.getX();
+			down_y = (int) e.getY();
 			return true;
 		} else if ( action == MotionEvent.ACTION_UP ) {
 			//Log.w(TAG,"Touch - up");
 			
-			check_touch ( e );
+			dx = (int) (e.getX() - down_x);
+			dy = (int) (e.getY() - down_y);
+			d = dx*dx + dy*dy;
+			
+			if ( d < 1000 )
+				check_touch ( e );
+			else
+				Log ( "Touch: ignoring (was move)" );
 			
 			// Common!  Transition 2 --> 0
 			if ( have_first_dist ) {
@@ -428,7 +470,6 @@ public class MyView extends View {
 			}
 			
 			if ( n == 2 ) {
-				int dx, dy, d;
 				have_first = false;
 				dx = (int) (e.getX(0) - e.getX(1));
 				dy = (int) (e.getY(0) - e.getY(1));
@@ -464,7 +505,6 @@ public class MyView extends View {
 				return true;
 			}
 			
-			was_a_move = true;
 			handle_move ( x-firstx, y-firsty );
 			firstx = x;
 			firsty = y;
@@ -475,3 +515,5 @@ public class MyView extends View {
 	}
 	
 }
+
+// THE END
