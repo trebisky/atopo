@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -125,7 +126,6 @@ public class MyView extends View {
 	
 	@Override
 	protected void onDraw(Canvas canvas) {
-		double center_long, center_lat;
 		int ox, oy;
 		int ex, ey;
 		int cw, ch; // size of canvas
@@ -137,9 +137,18 @@ public class MyView extends View {
 		int nx1, nx2;
 		int ny1, ny2;
 		
+		Rect src;
+		Rect dst;
+		Paint smooth_paint;
+		
 		Maplet center_maplet;
 		
 		final boolean show_boxes = false;
+		
+		/* setting this true gives somewhat slow bilinear */
+		/* setting this false gives fast nearest neighbor */
+		smooth_paint = new Paint();
+		smooth_paint.setFilterBitmap(true);
 		
 		// canvas size
 		cw = canvas.getWidth();
@@ -228,7 +237,15 @@ public class MyView extends View {
 		//ox = (cw - px )/2;
 		//oy = (ch - py )/2;
 		
-		canvas.drawBitmap(center_maplet.map, ox, oy, null);
+		/* XXX - you would think you would want to
+		 * subtract one from the following values, but
+		 * that yields a thin blue line.
+		 */
+		src = new Rect ( 0, 0, px, py );
+		dst = new Rect ( ox, oy, ox+px, oy+py );
+		
+		// canvas.drawBitmap(center_maplet.map, ox, oy, null);
+		canvas.drawBitmap(center_maplet.map, src, dst, smooth_paint );
 		
 		//drawBox ( canvas, ox, oy, px, py );
 		
@@ -260,7 +277,10 @@ public class MyView extends View {
 					// canvas.drawText("MAP", ex, ey, myPaint);
 				    continue;
 				}
-				canvas.drawBitmap(extra.map, ex, ey, null);
+				// canvas.drawBitmap(extra.map, ex, ey, null);
+				src = new Rect ( 0, 0, extra.width(), extra.height() );
+				dst = new Rect ( ex, ey, ex+px, ey+py );
+				canvas.drawBitmap( extra.map, src, dst, smooth_paint );
 			}
 		}
 		

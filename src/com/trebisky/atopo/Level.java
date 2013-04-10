@@ -244,15 +244,22 @@ public class Level {
 		return m != null;
 	}
 	
-	// XX - no validation
 	public static void set_level ( int arg ) {
-		cur_level = levels[arg];
+		if ( arg >= 0 && arg < NUM_LEVELS ) {
+			cur_level = levels[arg];
+			return;
+		}
+		// failsafe on initialization
+		if ( cur_level == null )
+			cur_level = levels[L_STATE];
 	}
 	
 	public static int get_level () {
 		return cur_level.level;
 	}
 	
+	// These 5 methods may now be un-necessary ...
+	// XXX XXX
 	public static void set_state () {
 		set_level ( L_STATE );
 	}

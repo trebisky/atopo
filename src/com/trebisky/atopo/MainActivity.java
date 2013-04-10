@@ -22,8 +22,8 @@ import android.view.WindowManager;
 
 public class MainActivity extends Activity implements LocationListener {
 
-	// private final boolean gps_running = true;
 	private boolean gps_running;
+	private boolean gps_first;
 	
 	// Tucson, Arizona
 	// private final double LONG_START = -110.94;
@@ -230,15 +230,16 @@ public class MainActivity extends Activity implements LocationListener {
         super.onResume();
 
         if ( gps_running )
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-                gps_delay, 0, this);
+        	start_gps ();
     }
     
+    // Start out requesting updates as fast as possible,
+    // when first update arrives, throttle back the rate.
     public void start_gps () {
     	MyView.Log ( "turning on GPS" );
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-            gps_delay, 0, this);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 		gps_running = true;
+		gps_first = true;
     }
     
     public void stop_gps () {
@@ -266,6 +267,11 @@ public class MainActivity extends Activity implements LocationListener {
     	
     	// worthless if nearly a kilometer
     	if ( accuracy > 750.0 ) return;
+    	
+    	if ( gps_first ) {
+    		gps_first = false;
+	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, gps_delay, 0, this);
+    	}
          
          Level.setpos ( lng, lat );
          
