@@ -38,8 +38,12 @@ public class MainActivity extends Activity implements LocationListener {
 	//private final double LAT_START = 36.024;
 	
 	// Grand Canyon, Horseshoe Mesa, east side (right)
-	private final double LONG_START = -111.97126;
-	private final double LAT_START = 36.02472;
+	// private final double LONG_START = -111.97126;
+	// private final double LAT_START = 36.02472;
+	
+	// Grand Canyon, Kelly Point Shivwitts
+	private final double LONG_START = -113.469;
+	private final double LAT_START = 35.835;
 	
 	// Dead Center of Sonora Quad, California
 	// private final double LONG_START = -120.438;
@@ -270,6 +274,7 @@ public class MainActivity extends Activity implements LocationListener {
     	
     	if ( gps_first ) {
     		gps_first = false;
+	        locationManager.removeUpdates(this);
 	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, gps_delay, 0, this);
     	}
          
