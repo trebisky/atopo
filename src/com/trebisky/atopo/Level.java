@@ -34,6 +34,8 @@ public class Level {
 		
 	private MapletCache maplet_cache;
 	
+	public double zoom;
+	
 	// ------------ Static fields
 	// ------------
 	private static FileCache file_cache;
@@ -56,9 +58,10 @@ public class Level {
 	
 	// instance constructor
 	
-	public Level ( int l, String p, String extra ) {
+	public Level ( int l, String p, String extra, double z ) {
 		level = l;
 		path = p;
+		zoom = z;
 			
 		if ( l == L_STATE || l == L_ATLAS ) {
 			onefile = extra;
@@ -195,15 +198,15 @@ public class Level {
 	}
 		
 	// static methods
-	public static void setup ( String base, double _long, double _lat ) {
+	public static void setup ( String base, double _long, double _lat, double zoom ) {
 		
 		file_cache = new FileCache ();
 		
-		levels[0] = new Level ( L_STATE, base, "us1map1" );
-		levels[1] = new Level ( L_ATLAS, base, "us1map2" );
-		levels[2] = new Level ( L_500K, base + "/l3", "g" );
-		levels[3] = new Level ( L_100K, base + "/l4", "c" );
-		levels[4] = new Level ( L_24K, base + "/l5", "n" );
+		levels[0] = new Level ( L_STATE, base, "us1map1", zoom );
+		levels[1] = new Level ( L_ATLAS, base, "us1map2", zoom );
+		levels[2] = new Level ( L_500K, base + "/l3", "g", zoom );
+		levels[3] = new Level ( L_100K, base + "/l4", "c", zoom );
+		levels[4] = new Level ( L_24K, base + "/l5", "n", zoom );
 		
 		set_level ( L_24K );
 		
@@ -253,6 +256,11 @@ public class Level {
 		if ( cur_level == null )
 			cur_level = levels[L_STATE];
 	}
+
+	public static double get_zoom () {
+		return cur_level.zoom;
+	}
+	
 	
 	public static int get_level () {
 		return cur_level.level;

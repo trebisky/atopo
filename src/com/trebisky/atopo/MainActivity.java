@@ -1,5 +1,6 @@
 package com.trebisky.atopo;
 
+import java.io.File;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -24,10 +25,22 @@ public class MainActivity extends Activity implements LocationListener {
 
 	private boolean gps_running;
 	private boolean gps_first;
+
+    // private final short LEVEL_START = Level.L_24K;
+    // private final short LEVEL_START = Level.L_100K;
+    // private final short LEVEL_START = Level.L_500K;
+    // private final short LEVEL_START = Level.L_ATLAS;
+    // private final short LEVEL_START = Level.L_STATE;
 	
 	// Tucson, Arizona
-	// private final double LONG_START = -110.94;
-	// private final double LAT_START = 32.27;
+	//private final double LONG_START = -110.94;
+	//private final double LAT_START = 32.27;
+	//private final short LEVEL_START = Level.L_ATLAS;
+	
+	// Joe Marty, Salt Lake City
+	private final double LONG_START = -111.7529;
+	private final double LAT_START = 40.7729;
+	private final short LEVEL_START = Level.L_ATLAS;
 	
 	// Grand Canyon, Tower of Ra
 	// private final double LONG_START = -112.203;
@@ -42,8 +55,8 @@ public class MainActivity extends Activity implements LocationListener {
 	// private final double LAT_START = 36.02472;
 	
 	// Grand Canyon, Kelly Point Shivwitts
-	private final double LONG_START = -113.469;
-	private final double LAT_START = 35.835;
+	// private final double LONG_START = -113.469;
+	// private final double LAT_START = 35.835;
 	
 	// Dead Center of Sonora Quad, California
 	// private final double LONG_START = -120.438;
@@ -62,16 +75,19 @@ public class MainActivity extends Activity implements LocationListener {
 	// private final String tpq_file = "/storage/sdcard1/us1map2.tpq";
 	// private final String tpq_file = "/storage/sdcard1/topo/us1map2.tpq";
 	
-	// TODO - ultimately I would like to have this program look
-	// on both sdcard0 and sdcard1 - this would allow a person who
-	// did not have an SD card slot to put maps on internal storage.
-	// Also I would want this program to "merge" both file collections
-	// if a user had both, allowing them to have an internal set of files
-	// optionally augmented by files on the SD card.
-	private final String file_base = "/storage/sdcard1/topo";
 	
 	// private final String tpq_dir = "/storage/sdcard1/topo/l5";
 	// private final String tpq_file = "/storage/sdcard1/topo/l5/n36112b2.tpq";
+	
+	// Tablets and Phones look best with different default zoom factors.
+	// My Samsung Galaxy S4 has a 5 inch 1920x1080 display (441 ppi)
+	// Joes Samsung Galaxy Note 3 has a 5.7 inch 1920x1080 (386 ppi)
+	//
+	// My Xoom tablet has a 10.1 inch 1280x800 display (149 ppi)
+	
+	// 5-14-2014 set this to 1.0 for tablet, 2.0 for phone
+	// private final double default_zoom = 1.0;
+	private final double default_zoom = 2.0;
 	
 	private LocationManager locationManager;
 	
@@ -82,6 +98,48 @@ public class MainActivity extends Activity implements LocationListener {
 	private MyView view;
 
 	private static Handler handle = new Handler();
+	
+	// This method was added 2-23-2014 -- First and foremost
+	// it takes into account different naming of the external
+	// SD card on different devices.  The first device I worked
+	// with (the Motorola Xoom) did (and still does) call the
+	// external slot "sdcard1", all other devices I have had
+	// access to call it "extSdCard".
+	// Note that I also check for maps that might be present
+	// on the internal storage (universally called "sdcard0"),
+	// but only after the check for maps on an external device
+	// has failed.
+	//
+	// This means that if there are maps in both locations,
+	// maps on an external card will hide maps on an internal card.
+	// For the time being, that is just how it is.
+	//
+	// XXX - Someday it might be nice to "merge" maps from both locations,
+	// but that will take some new coding in other parts of the
+	// software.
+	//
+	// private final String file_base = "/storage/sdcard1/topo";
+		
+	private String find_files () {
+		
+		File f;
+		
+		f = new File ( "/storage/sdcard1/topo" );
+		if ( f.exists() && f.isDirectory() ) {
+            return "/storage/sdcard1/topo";
+		}
+
+		f = new File ( "/storage/extSdCard/topo" );
+		if ( f.exists() && f.isDirectory() ) {
+            return "/storage/extSdCard/topo";
+		}
+
+		f = new File ( "/storage/sdcard0/topo" );
+		if ( f.exists() && f.isDirectory() ) {
+            return "/storage/sdcard0/topo";
+		}
+		return null;
+	}
 	
 	// This function exists because we
 	// cannot make the invalidate call
@@ -155,6 +213,7 @@ public class MainActivity extends Activity implements LocationListener {
 		double start_lat;
 		double start_long;
 		short start_level;
+		String file_base;
 		
 		super.onCreate(savedInstanceState);
 
@@ -187,12 +246,8 @@ public class MainActivity extends Activity implements LocationListener {
 		} else {
 			start_lat = LAT_START;
 			start_long = LONG_START;
+			start_level = LEVEL_START;
 			gps_running = false;
-			start_level = Level.L_24K;
-			// start_level = Level.L_100K;
-			// start_level = Level.L_500K;
-			// start_level = Level.L_ATLAS;
-			// start_level = Level.L_STATE;
 		}
 		
 		if ( gps_running ) {
@@ -201,7 +256,8 @@ public class MainActivity extends Activity implements LocationListener {
 
 		view = new MyView(this);
 		
-		Level.setup ( file_base, start_long, start_lat );
+		file_base = find_files ();
+		Level.setup ( file_base, start_long, start_lat, default_zoom );
 		Level.set_level ( start_level );
 		
 		setContentView(view);

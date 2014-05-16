@@ -105,22 +105,34 @@ public class MyView extends View {
 		marker_type = arg;
 	}
 	
+	/* XXX - Scaling these with zoom is wrong really
+	 * It is OK as a stopgap now, when all the zoom is doing
+	 * is to compensate for the dense resolution of handheld
+	 * phones, but when zoom is used to smoothly scale maps,
+	 * we will want to keep the cursor fixed size.
+	 * XXX - We may want to make the cursor lines thicker also
+	 * on densely resolved displays.
+	 */
 	private final int M_SMALL = 5;
 	private final int M_BIG = 10;
 	private final int M_CIRCLE = 12;
 	
-	private void marker ( Canvas canvas, int x, int y ) {
+	private void marker ( Canvas canvas, int x, int y, double zoom ) {
+		int small = (int) (M_SMALL * zoom);
+		int big = (int) (M_BIG * zoom);
+		int circle = (int) (M_CIRCLE * zoom);
+
 		// type 0 is blank - no marker
 		if ( marker_type == 1 ) {
-			canvas.drawLine ( x-M_SMALL, y, x+M_SMALL, y, myPaint );
-			canvas.drawLine ( x, y-M_SMALL, x, y+M_SMALL, myPaint );
+			canvas.drawLine ( x-small, y, x+small, y, myPaint );
+			canvas.drawLine ( x, y-small, x, y+small, myPaint );
 		} else if ( marker_type == 2 ){
-			canvas.drawLine ( x-M_BIG, y, x+M_BIG, y, myPaint );
-			canvas.drawLine ( x, y-M_BIG, x, y+M_BIG, myPaint );
+			canvas.drawLine ( x-big, y, x+big, y, myPaint );
+			canvas.drawLine ( x, y-big, x, y+big, myPaint );
 		} else if ( marker_type == 3 ){
-			canvas.drawLine ( x-M_BIG, y, x+M_BIG, y, myPaint );
-			canvas.drawLine ( x, y-M_BIG, x, y+M_BIG, myPaint );
-			canvas.drawCircle ( x, y, M_CIRCLE, myPaint );
+			canvas.drawLine ( x-big, y, x+big, y, myPaint );
+			canvas.drawLine ( x, y-big, x, y+big, myPaint );
+			canvas.drawCircle ( x, y, circle, myPaint );
 		}
 	}
 	
@@ -132,6 +144,7 @@ public class MyView extends View {
 		int cx, cy; // center of canvas
 		double fx, fy;
 		
+		int orig_px, orig_py;
 		int px, py;
 		int offx, offy;
 		int nx1, nx2;
@@ -216,8 +229,12 @@ public class MyView extends View {
 		// changes with latitude
 		
 		// maplet size in pixels
-		px = center_maplet.width();
-		py = center_maplet.height();
+		orig_px = center_maplet.width();
+		orig_py = center_maplet.height();
+		// px = orig_px;
+		// py = orig_py;
+		px = (int) (orig_px * Level.get_zoom());
+		py = (int) (orig_py * Level.get_zoom());
 		
 		// update values for motion scaling
 		scalex = Level.maplet_dlong() / px;
@@ -241,7 +258,7 @@ public class MyView extends View {
 		 * subtract one from the following values, but
 		 * that yields a thin blue line.
 		 */
-		src = new Rect ( 0, 0, px, py );
+		src = new Rect ( 0, 0, orig_px, orig_py );
 		dst = new Rect ( ox, oy, ox+px, oy+py );
 		
 		// canvas.drawBitmap(center_maplet.map, ox, oy, null);
@@ -296,7 +313,7 @@ public class MyView extends View {
 			}
 		}
 		
-		marker ( canvas, cx, cy );
+		marker ( canvas, cx, cy, Level.get_zoom() );
 
 		// Put debug info on top of the map.
 		// for ( int i=0; i< msg_index; i++ ) {
