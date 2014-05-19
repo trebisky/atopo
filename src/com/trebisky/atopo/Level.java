@@ -180,6 +180,54 @@ public class Level {
 		cur_lat = _lat;
 	}
 	
+	// We want to display coordinates to the nearest foot
+	// more or less. 
+	// The earths radius is (average) 3957 miles
+	// 1 degree is 69.063 miles
+	// 1 arc-minute is 1.15 miles
+	// 1 arc-second is 101.3 feet
+	// .01 arc-second is 1.013 feet
+	// .000001 degrees is 0.36 feet
+
+	private static String dms ( double val ) {
+		boolean neg = false;
+		int d, m;
+		
+		if ( val < 0.0 ) {
+			neg = true;
+			val = -val;
+		}
+		d = (int) val;
+		val = (val - d) * 60;
+		m = (int) val;
+		val = (val - m) * 60;
+
+		if ( neg )
+		    return String.format("-%d:%02d:%05.2f", d, m, val );
+		else
+		    return String.format("%d:%02d:%05.2f", d, m, val );
+	}
+	
+	private static String d2f ( double val ) {
+		return String.format("%12.6f", val );
+	}
+
+	public static String cur_long_f () {
+		return d2f ( cur_long );
+	}
+	
+	public static String cur_lat_f () {
+		return d2f ( cur_lat );
+	}
+
+	public static String cur_long_dms () {
+		return dms ( cur_long );
+	}
+	
+	public static String cur_lat_dms () {
+		return dms ( cur_lat );
+	}
+	
 	public static double cur_long () {
 		return cur_long;
 	}

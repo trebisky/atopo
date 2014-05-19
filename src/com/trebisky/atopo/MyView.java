@@ -43,16 +43,60 @@ public class MyView extends View {
 		Log.e ( TAG, msg + " " + a + " " + b + " " + c + " " + d );
 	}
 	
-	private Paint myPaint;
-
 	// degrees per pixel
 	private double scalex, scaley;
 
+	private static boolean hires = false;
+
+	// defaults are appropriate for tablets
+	private static int text_size = 20;
+
+	// center cursor sizes
+	private static int cur_small = 5;
+	private static int cur_big = 10;
+	private static int cur_circle = 12;
+	
+	// must call before instantiating
+	public static void set_hires () {
+		hires = true;
+		text_size = 40;
+		cur_small = 10;
+		cur_big = 20;
+		cur_circle = 24;
+	}
+
+	private Paint myPaint;
+	private Paint smooth_paint;
+
+	// for lat/long display
+	private Paint llbg_Paint;
+	private Paint llfg_Paint;
+
+	// shared by all initializers
 	private void init() {
+
 		myPaint = new Paint();
 		myPaint.setColor(Color.BLACK);
-		myPaint.setTextSize(20);
+        myPaint.setTextSize(text_size);
 		myPaint.setStyle(Paint.Style.STROKE);
+		if ( hires )
+		    myPaint.setStrokeWidth(2.0F);
+
+		/* setting this true gives somewhat slow bilinear */
+		/* setting this false gives fast nearest neighbor */
+		smooth_paint = new Paint();
+		smooth_paint.setFilterBitmap(true);
+
+		llbg_Paint = new Paint();
+		llbg_Paint.setColor(Color.WHITE);
+        llbg_Paint.setTextSize(text_size);
+		llbg_Paint.setStyle(Paint.Style.FILL);
+        //llbg_Paint.setStrokeWidth(10);
+
+		llfg_Paint = new Paint();
+		llfg_Paint.setColor(Color.BLUE);
+        llfg_Paint.setTextSize(text_size);
+		llfg_Paint.setStyle(Paint.Style.FILL);
 	}
 	
 	private MainActivity boss;
@@ -77,6 +121,8 @@ public class MyView extends View {
 		// TODO Auto-generated constructor stub
 	}
 	
+	// these set the screen all blue and write messages in black text
+	// on a phone, the messages are very tiny.
 	public static void setmsg ( String arg ) {
 		if ( msg_index >= NUM_MSG ) return;
 		msg[msg_index++] = arg;
@@ -105,34 +151,19 @@ public class MyView extends View {
 		marker_type = arg;
 	}
 	
-	/* XXX - Scaling these with zoom is wrong really
-	 * It is OK as a stopgap now, when all the zoom is doing
-	 * is to compensate for the dense resolution of handheld
-	 * phones, but when zoom is used to smoothly scale maps,
-	 * we will want to keep the cursor fixed size.
-	 * XXX - We may want to make the cursor lines thicker also
-	 * on densely resolved displays.
-	 */
-	private final int M_SMALL = 5;
-	private final int M_BIG = 10;
-	private final int M_CIRCLE = 12;
-	
-	private void marker ( Canvas canvas, int x, int y, double zoom ) {
-		int small = (int) (M_SMALL * zoom);
-		int big = (int) (M_BIG * zoom);
-		int circle = (int) (M_CIRCLE * zoom);
+	private void marker ( Canvas canvas, int x, int y ) {
 
 		// type 0 is blank - no marker
 		if ( marker_type == 1 ) {
-			canvas.drawLine ( x-small, y, x+small, y, myPaint );
-			canvas.drawLine ( x, y-small, x, y+small, myPaint );
+			canvas.drawLine ( x-cur_small, y, x+cur_small, y, myPaint );
+			canvas.drawLine ( x, y-cur_small, x, y+cur_small, myPaint );
 		} else if ( marker_type == 2 ){
-			canvas.drawLine ( x-big, y, x+big, y, myPaint );
-			canvas.drawLine ( x, y-big, x, y+big, myPaint );
+			canvas.drawLine ( x-cur_big, y, x+cur_big, y, myPaint );
+			canvas.drawLine ( x, y-cur_big, x, y+cur_big, myPaint );
 		} else if ( marker_type == 3 ){
-			canvas.drawLine ( x-big, y, x+big, y, myPaint );
-			canvas.drawLine ( x, y-big, x, y+big, myPaint );
-			canvas.drawCircle ( x, y, circle, myPaint );
+			canvas.drawLine ( x-cur_big, y, x+cur_big, y, myPaint );
+			canvas.drawLine ( x, y-cur_big, x, y+cur_big, myPaint );
+			canvas.drawCircle ( x, y, cur_circle, myPaint );
 		}
 	}
 	
@@ -152,20 +183,24 @@ public class MyView extends View {
 		
 		Rect src;
 		Rect dst;
-		Paint smooth_paint;
 		
 		Maplet center_maplet;
 		
 		final boolean show_boxes = false;
 		
-		/* setting this true gives somewhat slow bilinear */
-		/* setting this false gives fast nearest neighbor */
-		smooth_paint = new Paint();
-		smooth_paint.setFilterBitmap(true);
-		
 		// canvas size
+		// on my phone (in portrait orientation)
+		// I get 1080 wide, 1920 high
 		cw = canvas.getWidth();
 		ch = canvas.getHeight();
+
+		// XXX - I read that the above is long deprecated and I
+		// really should be doing the following
+		// Display display = getWindowManager().getDefaultDisplay();
+		// Point size = new Point();
+		// display.getSize(size);
+		// cw = size.x; 
+		// ch = size.y;
 		
 		// canvas center
 		cx = cw / 2;
@@ -313,12 +348,24 @@ public class MyView extends View {
 			}
 		}
 		
-		marker ( canvas, cx, cy, Level.get_zoom() );
+		marker ( canvas, cx, cy );
 
 		// Put debug info on top of the map.
 		// for ( int i=0; i< msg_index; i++ ) {
 		// 	canvas.drawText(msg[i], 100, 100 + i * 30, myPaint);
 		// }
+		
+		// as near as I can tell, the android canvas origin
+		// is at the top left
+		// left, top, right, bottom
+		//Rect llbox = new Rect ( cx, cy, cx+100, cy+100 );
+		Rect llbox = new Rect ( 0, ch-50, cw, ch );
+		canvas.drawRect ( llbox, llbg_Paint );
+		//canvas.drawText( "Hello World" , 100, ch-5, llfg_Paint);
+		//canvas.drawText( Level.cur_long_f() , 200, ch-5, llfg_Paint);
+		//canvas.drawText( Level.cur_lat_f() , 700, ch-5, llfg_Paint);
+		canvas.drawText( Level.cur_long_dms() , 200, ch-5, llfg_Paint);
+		canvas.drawText( Level.cur_lat_dms() , 700, ch-5, llfg_Paint);
 	}
 
 	public void handle_move ( int dx, int dy ) {

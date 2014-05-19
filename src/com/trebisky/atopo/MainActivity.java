@@ -12,6 +12,8 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -33,14 +35,14 @@ public class MainActivity extends Activity implements LocationListener {
     // private final short LEVEL_START = Level.L_STATE;
 	
 	// Tucson, Arizona
-	//private final double LONG_START = -110.94;
-	//private final double LAT_START = 32.27;
-	//private final short LEVEL_START = Level.L_ATLAS;
+	private final double LONG_START = -110.94;
+	private final double LAT_START = 32.27;
+	private final short LEVEL_START = Level.L_ATLAS;
 	
 	// Joe Marty, Salt Lake City
-	private final double LONG_START = -111.7529;
-	private final double LAT_START = 40.7729;
-	private final short LEVEL_START = Level.L_ATLAS;
+	//private final double LONG_START = -111.7529;
+	//private final double LAT_START = 40.7729;
+	//private final short LEVEL_START = Level.L_ATLAS;
 	
 	// Grand Canyon, Tower of Ra
 	// private final double LONG_START = -112.203;
@@ -253,6 +255,10 @@ public class MainActivity extends Activity implements LocationListener {
 		if ( gps_running ) {
 			start_gps ();
 		}
+		
+		if ( default_zoom > 1.5 ) {
+            MyView.set_hires ();
+		}
 
 		view = new MyView(this);
 		
@@ -270,13 +276,33 @@ public class MainActivity extends Activity implements LocationListener {
 		// wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "aTopo");
 	}
 
+	// We want an options menu attached to the menu button
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		// getMenuInflater().inflate(R.menu.main, menu);
-		return true;
+	    MenuInflater inflater = getMenuInflater();
+	    inflater.inflate(R.menu.atopo_menu, menu);
+	    // MyView.onemsg ( "Menu" );
+	    return true;
 	}
-	
+
+	// simple code for menu selected
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+	    // Handle item selection
+	    switch (item.getItemId()) {
+	    case R.id.test:
+	        //newGame();
+	        return true;
+	    //case R.id.help:
+	        //showHelp();
+	        //return true;
+	    default:
+	        return super.onOptionsItemSelected(item);
+	    }
+	}
+
 	@Override
     public void onPause() {
         super.onPause();
@@ -300,12 +326,14 @@ public class MainActivity extends Activity implements LocationListener {
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 		gps_running = true;
 		gps_first = true;
+	    //MyView.onemsg ( "GPS on" );
     }
     
     public void stop_gps () {
     	MyView.Log ( "turning off GPS" );
         locationManager.removeUpdates(this);
 		gps_running = false;
+	    //MyView.onemsg ( "GPS off" );
     }
     
     public void toggle_gps () {
