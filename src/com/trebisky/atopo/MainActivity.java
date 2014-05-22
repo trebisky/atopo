@@ -93,7 +93,8 @@ public class MainActivity extends Activity implements LocationListener {
 	
 	private LocationManager locationManager;
 	
-	private final int gps_delay = 10 * 1000;
+	//private final int gps_delay = 10 * 1000;
+	private final int gps_delay = 1 * 1000;
 	
 	private final int timer_delay = 250;
 	
@@ -347,7 +348,8 @@ public class MainActivity extends Activity implements LocationListener {
 
          double lat = loc.getLatitude();
          double lng = loc.getLongitude();
-         // double alt = loc.getAltitude(); // in meters
+         double alt = loc.getAltitude() * 3.28084; // convert to feet
+
          double accuracy = loc.getAccuracy(); // in meters
     	// MyView.Log ( "GPS accuracy: " + accuracy + " meters" );
     	// In one test I saw an initial accuracy of 45.6 meters,
@@ -362,7 +364,7 @@ public class MainActivity extends Activity implements LocationListener {
 	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, gps_delay, 0, this);
     	}
          
-         Level.setpos ( lng, lat );
+         Level.setgps ( lng, lat, alt );
          
          view.invalidate();
  }

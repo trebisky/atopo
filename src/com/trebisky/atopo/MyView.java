@@ -364,8 +364,9 @@ public class MyView extends View {
 		//canvas.drawText( "Hello World" , 100, ch-5, llfg_Paint);
 		//canvas.drawText( Level.cur_long_f() , 200, ch-5, llfg_Paint);
 		//canvas.drawText( Level.cur_lat_f() , 700, ch-5, llfg_Paint);
-		canvas.drawText( Level.cur_long_dms() , 200, ch-5, llfg_Paint);
-		canvas.drawText( Level.cur_lat_dms() , 700, ch-5, llfg_Paint);
+		canvas.drawText( Level.cur_long_dms() , 100, ch-5, llfg_Paint);
+		canvas.drawText( Level.cur_lat_dms() , 500, ch-5, llfg_Paint);
+		canvas.drawText( Level.cur_alt_f() , 800, ch-5, llfg_Paint);
 	}
 
 	public void handle_move ( int dx, int dy ) {

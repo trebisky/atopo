@@ -55,6 +55,7 @@ public class Level {
 	
 	private static double cur_long;
 	private static double cur_lat;
+	private static double cur_alt;
 	
 	// instance constructor
 	
@@ -164,9 +165,20 @@ public class Level {
 		
 		return null;
 	}
-	
-	// gps will call this, and we do on startup.
+
+	// gps calls this
+	public static void setgps ( double _long, double _lat, double _alt ) {
+		setpos_x ( _long, _lat );
+		cur_alt = _alt;
+	}
+
+	// called at startup and when we jog position
 	public static void setpos ( double _long, double _lat ) {
+		setpos_x ( _long, _lat );
+		cur_alt = -9999.0;
+	}
+	
+	private static void setpos_x ( double _long, double _lat ) {
 		
 		// Before we allow the user to move to a new center location
 		// we want to verify that a map is there (this means it will
@@ -234,6 +246,17 @@ public class Level {
 	
 	public static double cur_lat () {
 		return cur_lat;
+	}
+
+	public static double cur_alt () {
+		return cur_alt;
+	}
+
+	public static String cur_alt_f () {
+		if ( cur_alt < -5000.0 )
+            return " ";
+		else
+            return String.format("%5.0f", cur_alt );
 	}
 	
 	public static void jogpos ( double dlong, double dlat ) {
