@@ -121,6 +121,9 @@ public class MainActivity extends Activity implements LocationListener {
 	// software.
 	//
 	// private final String file_base = "/storage/sdcard1/topo";
+	//
+	// apparently the right way to do this is:
+	// Environement.getExternalStorageDirectory().getAbsolutePath() + "/topo"
 		
 	private String find_files () {
 		
