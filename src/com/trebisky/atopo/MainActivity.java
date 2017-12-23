@@ -12,7 +12,6 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.Window;
 import android.view.WindowManager;
@@ -35,9 +34,9 @@ public class MainActivity extends Activity implements LocationListener {
     // private final short LEVEL_START = Level.L_STATE;
 	
 	// Tucson, Arizona
-	private final double LONG_START = -110.94;
-	private final double LAT_START = 32.27;
-	private final short LEVEL_START = Level.L_ATLAS;
+	//private final double LONG_START = -110.94;
+	//private final double LAT_START = 32.27;
+	//private final short LEVEL_START = Level.L_ATLAS;
 	
 	// Joe Marty, Salt Lake City
 	//private final double LONG_START = -111.7529;
@@ -88,13 +87,13 @@ public class MainActivity extends Activity implements LocationListener {
 	// My Xoom tablet has a 10.1 inch 1280x800 display (149 ppi)
 	
 	// 5-14-2014 set this to 1.0 for tablet, 2.0 for phone
-	// private final double default_zoom = 1.0;
-	private final double default_zoom = 2.0;
+	// private double global_zoom = 1.0;
+	// private double global_zoom = 2.0;
+	private double global_zoom = 1.0;
 	
 	private LocationManager locationManager;
 	
-	//private final int gps_delay = 10 * 1000;
-	private final int gps_delay = 1 * 1000;
+	private int gps_delay = 1 * 1000;	// milliseconds
 	
 	private final int timer_delay = 250;
 	
@@ -144,6 +143,16 @@ public class MainActivity extends Activity implements LocationListener {
 		if ( f.exists() && f.isDirectory() ) {
             return "/storage/sdcard0/topo";
 		}
+		// For Mark Patton's "asian" Xoom
+		f = new File ( "/mnt/external1/topo" );
+		if ( f.exists() && f.isDirectory() ) {
+            return "/mnt/external1/topo";
+		}
+		// For the LG G-Pad  11-4-2016
+		f = new File ( "/storage/external_SD/topo" );
+		if ( f.exists() && f.isDirectory() ) {
+            return "/storage/external_SD/topo";
+		}
 		return null;
 	}
 	
@@ -163,11 +172,9 @@ public class MainActivity extends Activity implements LocationListener {
 	}
 	
 	// This just has to be run on the UI thread too.
-	public void post_gps_toggle () {
+	public void post_double_click () {
 		handle.post(new Runnable() {
 			public void run() {
-				// invalidate the view,
-				// which forces an onDraw()
 				toggle_gps ();
 			}
 		});
@@ -218,7 +225,7 @@ public class MainActivity extends Activity implements LocationListener {
 	protected void onCreate(Bundle savedInstanceState) {
 		double start_lat;
 		double start_long;
-		short start_level;
+		int start_level;
 		String file_base;
 		
 		super.onCreate(savedInstanceState);
@@ -248,26 +255,32 @@ public class MainActivity extends Activity implements LocationListener {
 			start_lat = savedInstanceState.getDouble ( "lat" );
 			start_long = savedInstanceState.getDouble ( "long" );
 			gps_running = savedInstanceState.getBoolean ( "gps" );
-			start_level = savedInstanceState.getShort ( "level" );
+			start_level = (int) savedInstanceState.getShort ( "level" );
 		} else {
-			start_lat = LAT_START;
-			start_long = LONG_START;
-			start_level = LEVEL_START;
+			// start_lat = LAT_START;
+			// start_long = LONG_START;
+			// start_level = LEVEL_START;
 			gps_running = false;
+			Settings.init ( getSharedPreferences ( "atopo_preferences", Activity.MODE_PRIVATE ) );
+			start_lat = Settings.get_start_lat ();
+			start_long = Settings.get_start_long ();
+			start_level = Settings.get_start_level ();
+			global_zoom = Settings.get_zoom ();
+			MyView.set_display_mode ( Settings.get_display () );
 		}
 		
 		if ( gps_running ) {
 			start_gps ();
 		}
 		
-		if ( default_zoom > 1.5 ) {
-            MyView.set_hires ();
+		if ( global_zoom > 1.5 ) {
+            MyView.set_hires ( true );
 		}
 
 		view = new MyView(this);
 		
 		file_base = find_files ();
-		Level.setup ( file_base, start_long, start_lat, default_zoom );
+		Level.setup ( file_base, start_long, start_lat, global_zoom );
 		Level.set_level ( start_level );
 		
 		setContentView(view);
@@ -275,18 +288,35 @@ public class MainActivity extends Activity implements LocationListener {
 		Timer timer = new Timer();
 		timer.schedule(new tickTask(), 0, timer_delay);
 
+		if ( ! gps_running ) {
+			Level.set_alt_msg ( "GPS off" );
+		}
+
 		// PowerManager powerManager = (PowerManager)
 		// getSystemService(Context.POWER_SERVICE);
 		// wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "aTopo");
 	}
 
 	// We want an options menu attached to the menu button
+	// Note that although this works fine on Android 4.4 (KitKat)
+	// with my Samsung Galaxy S4 phone, on my old Motorola Xoom
+	// tablet, there is not dedicated menu button and thus no way
+	// to get to these menus.  The answer is to set the minSDK to 8
+	// and most importantly the target SDK to 10 in the AndroidManifest.xml
+	// file, this yields a little menu icon at the bottom left and works fine.
+	// Google really wants all this to be deprecated and for applications to
+	// use the "Action Bar", but as long as this works, it saves screen
+	// real estate and keeps me happy.  tjt  5-26-2014
+	// They want me to set up my menu using XML also, foo on them.
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		// getMenuInflater().inflate(R.menu.main, menu);
+		/*
 	    MenuInflater inflater = getMenuInflater();
 	    inflater.inflate(R.menu.atopo_menu, menu);
+	    */
+		Settings.createMenu ( menu, getMenuInflater() );
 	    // MyView.onemsg ( "Menu" );
 	    return true;
 	}
@@ -294,17 +324,12 @@ public class MainActivity extends Activity implements LocationListener {
 	// simple code for menu selected
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-	    // Handle item selection
-	    switch (item.getItemId()) {
-	    case R.id.test:
-	        //newGame();
-	        return true;
-	    //case R.id.help:
-	        //showHelp();
-	        //return true;
-	    default:
-	        return super.onOptionsItemSelected(item);
-	    }
+		if ( Settings.doMenu ( this, item ) ) {
+            return true;
+		}
+
+        return super.onOptionsItemSelected(item);
+
 	}
 
 	@Override
@@ -323,6 +348,10 @@ public class MainActivity extends Activity implements LocationListener {
         	start_gps ();
     }
     
+    public void set_gps_delay ( int arg ) {
+    	gps_delay = arg * 1000;
+    }
+    
     // Start out requesting updates as fast as possible,
     // when first update arrives, throttle back the rate.
     public void start_gps () {
@@ -330,6 +359,7 @@ public class MainActivity extends Activity implements LocationListener {
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 		gps_running = true;
 		gps_first = true;
+        Level.set_alt_msg ( "GPS starting" );
 	    //MyView.onemsg ( "GPS on" );
     }
     
@@ -338,6 +368,7 @@ public class MainActivity extends Activity implements LocationListener {
         locationManager.removeUpdates(this);
 		gps_running = false;
 	    //MyView.onemsg ( "GPS off" );
+        Level.set_alt_msg ( "GPS off" );
     }
     
     public void toggle_gps () {

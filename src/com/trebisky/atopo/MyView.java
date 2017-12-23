@@ -50,6 +50,8 @@ public class MyView extends View {
 
 	// defaults are appropriate for tablets
 	private static int text_size = 20;
+	private static int disp_height = 25;
+	private static int disp_width = 200;
 
 	// center cursor sizes
 	private static int cur_small = 5;
@@ -57,13 +59,30 @@ public class MyView extends View {
 	private static int cur_circle = 12;
 	
 	// must call before instantiating
-	public static void set_hires () {
-		hires = true;
-		text_size = 40;
-		cur_small = 10;
-		cur_big = 20;
-		cur_circle = 24;
+	public static void set_hires ( boolean val) {
+		hires = val;
+		if ( hires ) {
+            text_size = 40;
+            cur_small = 10;
+            cur_big = 20;
+            cur_circle = 24;
+            disp_height = 50;
+            disp_width = 400;
+		} else {
+            text_size = 20;
+            cur_small = 5;
+            cur_big = 10;
+            cur_circle = 12;
+            disp_height = 25;
+            disp_width = 200;
+		}
+
+		// This would be good, but ...
+		// to redo paint
+		// init ();
 	}
+	
+	private static int display_mode = 0;
 
 	private Paint myPaint;
 	private Paint smooth_paint;
@@ -119,6 +138,10 @@ public class MyView extends View {
 		super(context, attrs, defaultStyle);
 		init();
 		// TODO Auto-generated constructor stub
+	}
+	
+	public static void set_display_mode ( int arg ) {
+		display_mode = arg;
 	}
 	
 	// these set the screen all blue and write messages in black text
@@ -358,15 +381,22 @@ public class MyView extends View {
 		// as near as I can tell, the android canvas origin
 		// is at the top left
 		// left, top, right, bottom
-		//Rect llbox = new Rect ( cx, cy, cx+100, cy+100 );
-		Rect llbox = new Rect ( 0, ch-50, cw, ch );
-		canvas.drawRect ( llbox, llbg_Paint );
-		//canvas.drawText( "Hello World" , 100, ch-5, llfg_Paint);
-		//canvas.drawText( Level.cur_long_f() , 200, ch-5, llfg_Paint);
-		//canvas.drawText( Level.cur_lat_f() , 700, ch-5, llfg_Paint);
-		canvas.drawText( Level.cur_long_dms() , 100, ch-5, llfg_Paint);
-		canvas.drawText( Level.cur_lat_dms() , 500, ch-5, llfg_Paint);
-		canvas.drawText( Level.cur_alt_f() , 800, ch-5, llfg_Paint);
+
+		if ( display_mode > 0 ) {
+		    //Rect llbox = new Rect ( cx, cy, cx+100, cy+100 );
+		    Rect llbox = new Rect ( 0, ch-disp_height, cw, ch );
+		    canvas.drawRect ( llbox, llbg_Paint );
+		    int ypos = hires ? 100 : 500;
+		    if ( display_mode > 1 ) {
+		        canvas.drawText( Level.cur_long_f() , ypos, ch-5, llfg_Paint);
+		        canvas.drawText( Level.cur_lat_f() , ypos+disp_width, ch-5, llfg_Paint);
+		    } else {
+		        canvas.drawText( Level.cur_long_dms() , ypos, ch-5, llfg_Paint);
+		        canvas.drawText( Level.cur_lat_dms() , ypos+disp_width, ch-5, llfg_Paint);
+		    }
+		    ypos += 2* disp_width;
+		    canvas.drawText( Level.cur_alt_string() , ypos, ch-5, llfg_Paint);
+		}
 	}
 
 	public void handle_move ( int dx, int dy ) {
@@ -490,8 +520,8 @@ public class MyView extends View {
 		if ( wait < 300 ) return;
 		
 		if ( touch_count == 2 ) {
-			Log ( "toggling GPS" );
-			boss.post_gps_toggle ();
+			//Log ( "handle double click" );
+			boss.post_double_click ();
 		}
 		touch_count = 0;
 	}

@@ -49,6 +49,33 @@ public class Level {
 	public static final int L_100K = 3;
 	public static final int L_24K = 4;
 	
+	public static String encode_level ( int l ) {
+		switch ( l ) {
+		case L_STATE:	return "state";
+		case L_ATLAS:	return "atlas";
+		case L_500K:	return "500K";
+		case L_100K:	return "100K";
+		case L_24K:	    return "24K";
+		default: 		return "--";
+		}
+	}
+
+	public static int decode_level ( String s ) {
+		if ( s.equals("state") ) {
+			return L_STATE;
+		} else if ( s.equals("atlas") ) {
+			return L_ATLAS;
+		} else if ( s.equals("500K") ) {
+			return L_500K;
+		} else if ( s.equals("100K") ) {
+			return L_100K;
+		} else if ( s.equals("24K") ) {
+			return L_24K;
+		} else {
+			return L_ATLAS;
+		}
+	}
+	
 	private static Level levels[] = new Level[NUM_LEVELS];
 	
 	private static Level cur_level;
@@ -56,6 +83,7 @@ public class Level {
 	private static double cur_long;
 	private static double cur_lat;
 	private static double cur_alt;
+	private static String alt_msg = null;
 	
 	// instance constructor
 	
@@ -73,6 +101,14 @@ public class Level {
 		maplet_cache = new MapletCache ();
 			
 		probe_map();
+	}
+	
+	// allow zoom to be reset after startup.
+	public static void set_zoom ( double z )
+	{
+		for ( int l=0; l<NUM_LEVELS; l++ ) {
+			levels[l].zoom = z;
+		}
 	}
 	
 	// Called at startup during level setup
@@ -170,12 +206,14 @@ public class Level {
 	public static void setgps ( double _long, double _lat, double _alt ) {
 		setpos_x ( _long, _lat );
 		cur_alt = _alt;
+		alt_msg = null;
 	}
 
 	// called at startup and when we jog position
 	public static void setpos ( double _long, double _lat ) {
 		setpos_x ( _long, _lat );
-		cur_alt = -9999.0;
+		if ( alt_msg == null )
+            alt_msg = " ";
 	}
 	
 	private static void setpos_x ( double _long, double _lat ) {
@@ -247,14 +285,19 @@ public class Level {
 	public static double cur_lat () {
 		return cur_lat;
 	}
+	
+	public static void set_alt_msg ( String arg ) {
+		alt_msg = arg;
+	}
 
+	// I don't think we ever use this
 	public static double cur_alt () {
 		return cur_alt;
 	}
 
-	public static String cur_alt_f () {
-		if ( cur_alt < -5000.0 )
-            return " ";
+	public static String cur_alt_string () {
+		if ( alt_msg != null )
+			return alt_msg;
 		else
             return String.format("%5.0f", cur_alt );
 	}

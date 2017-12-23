@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
-    <item android:id="@+id/test" android:title="Test" android:checkable="true" android:menuCategory="system" android:checked="false" android:visible="true" android:enabled="true"></item>
+    <item android:id="@+id/gpson" android:title="GPS active" android:checkable="true" android:menuCategory="system" android:checked="false" android:visible="true" android:enabled="true"></item>
+    <group android:id="@+id/gps" android:enabled="true" android:visible="true" android:menuCategory="system" android:checkableBehavior="single">
+        <item android:id="@+id/gps1" android:title="GPS 1 second" android:titleCondensed="gps1" android:visible="true" android:checked="false" android:menuCategory="system" android:checkable="true">
+        </item>
+        <item android:id="@+id/gps5" android:menuCategory="system" android:title="GPS 5 second" android:titleCondensed="gps5" android:visible="true" android:checked="false" android:enabled="true" android:checkable="true"></item>
+        <item android:id="@+id/gpsoff" android:title="GPS off" android:titleCondensed="gpsoff" android:visible="true" android:checked="true" android:enabled="true" android:checkable="true"></item>
+    </group>
     
 
 </menu>

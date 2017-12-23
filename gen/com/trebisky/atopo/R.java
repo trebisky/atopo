@@ -24,8 +24,12 @@ public final class R {
         public static final int ic_launcher=0x7f020000;
     }
     public static final class id {
-        public static final int action_settings=0x7f070001;
-        public static final int test=0x7f070000;
+        public static final int action_settings=0x7f070005;
+        public static final int gps=0x7f070001;
+        public static final int gps1=0x7f070002;
+        public static final int gps5=0x7f070003;
+        public static final int gpsoff=0x7f070004;
+        public static final int gpson=0x7f070000;
     }
     public static final class menu {
         public static final int atopo_menu=0x7f060000;
