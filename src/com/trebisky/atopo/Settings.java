@@ -64,8 +64,8 @@ public class Settings {// We want an options menu attached to the menu button
 	public static final int ZOOM = 1;
 
 	public static final int GPS_1 = 11;
-	public static final int GPS_5 = 12;
-	public static final int GPS_10 = 13;
+// 	public static final int GPS_5 = 12;
+// 	public static final int GPS_10 = 13;
 	public static final int GPS_OFF = 14;
 
 	public static final int LOC_TUC = 21;
@@ -112,8 +112,10 @@ public class Settings {// We want an options menu attached to the menu button
             m.setChecked(true);
 
 		menu.add ( G_GPS, GPS_1, Menu.NONE, "GPS 1 second" );
+		/*
 		menu.add ( G_GPS, GPS_5, Menu.NONE, "GPS 5 second" );
 		menu.add ( G_GPS, GPS_10, Menu.NONE, "GPS 10 second" );
+		*/
 		menu.add ( G_GPS, GPS_OFF, Menu.NONE, "GPS off" ).setChecked(true);
 		menu.setGroupCheckable ( G_GPS, true, true );
 
@@ -172,6 +174,7 @@ public class Settings {// We want an options menu attached to the menu button
 	    	}
             //MyView.Log ( "Menu gps 1 second" );
 	        return true;
+/*
 	    case GPS_5:
 	    	if ( ! item.isChecked() ) {
             	item.setChecked(true);
@@ -186,6 +189,7 @@ public class Settings {// We want an options menu attached to the menu button
 	    		app.start_gps();
 	    	}
 	        return true;
+*/
 	    case GPS_OFF:
 	    	if ( ! item.isChecked() ) {
             	item.setChecked(true);
