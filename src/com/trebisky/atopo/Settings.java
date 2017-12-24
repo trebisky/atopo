@@ -15,6 +15,7 @@ public class Settings {// We want an options menu attached to the menu button
 	static double pref_start_lat;
 	static int pref_start_level;
 	static int pref_display;
+	static boolean pref_gps;
 	
 	// Tucson, Arizona
 	private static final double tuc_long = -110.94;
@@ -32,10 +33,11 @@ public class Settings {// We want an options menu attached to the menu button
 	public static void init ( SharedPreferences pref ) {
 		myPref = pref;
 		pref_zoom = myPref.getFloat ( "zoom", 2.0F );
-		pref_start_long = myPref.getFloat ( "start_long", (float) reno_long );
-		pref_start_lat = myPref.getFloat ( "start_lat", (float) reno_lat );
+		pref_start_long = myPref.getFloat ( "start_long", (float) slc_long );
+		pref_start_lat = myPref.getFloat ( "start_lat", (float) slc_lat );
 		pref_start_level = Level.decode_level ( myPref.getString ( "start_level", Level.encode_level(Level.L_ATLAS) ) );
 		pref_display = myPref.getInt ( "display", 1 );
+		pref_gps = myPref.getBoolean ( "gps", false );
 	}
 	
 	public static void save () {
@@ -46,6 +48,7 @@ public class Settings {// We want an options menu attached to the menu button
         editor.putFloat ( "start_lat", (float) pref_start_lat );
         editor.putString ( "start_level", Level.encode_level(pref_start_level) );
         editor.putInt ( "display", pref_display );
+        editor.putBoolean ( "gps", pref_gps );
 
         editor.apply();
         //if ( editor.commit() )

@@ -16,6 +16,8 @@ public class MyView extends View {
 	private static final int NUM_MSG = 10;
 	private static String[] msg = new String[NUM_MSG];
 	private static int msg_index;
+
+	private static String trouble_msg;
 	
 	private static final String TAG = "atopo";
 	
@@ -85,6 +87,7 @@ public class MyView extends View {
 	private static int display_mode = 0;
 
 	private Paint myPaint;
+	private Paint myText;
 	private Paint smooth_paint;
 
 	// for lat/long display
@@ -94,12 +97,21 @@ public class MyView extends View {
 	// shared by all initializers
 	private void init() {
 
+		// Using this for text yields hollow letters
 		myPaint = new Paint();
 		myPaint.setColor(Color.BLACK);
         myPaint.setTextSize(text_size);
 		myPaint.setStyle(Paint.Style.STROKE);
 		if ( hires )
 		    myPaint.setStrokeWidth(2.0F);
+
+		myText = new Paint();
+		myText.setColor(Color.BLACK);
+        myText.setTextSize(text_size);
+		myText.setStyle(Paint.Style.FILL_AND_STROKE);
+		if ( hires )
+		    myText.setStrokeWidth(2.0F);
+
 
 		/* setting this true gives somewhat slow bilinear */
 		/* setting this false gives fast nearest neighbor */
@@ -155,8 +167,11 @@ public class MyView extends View {
 		setmsg ( arg );
 	}
 	
+	public static void trouble ( String msg ) {
+        trouble_msg = msg;
+	}
+	
 	private void drawBox ( Canvas canvas, int ox, int oy, int px, int py ) {
-		
 		canvas.drawLine ( ox, oy, ox+px, oy, myPaint );
 		canvas.drawLine ( ox, oy, ox, oy+py, myPaint );
 		canvas.drawLine ( ox+px, oy, ox+px, oy+py, myPaint );
@@ -235,16 +250,25 @@ public class MyView extends View {
 		// different pixel width for maplets.
 		canvas.drawColor(Color.BLUE);
 		
+		/* Put this panic message in the center */
+		if ( trouble_msg != null ) {
+            canvas.drawText(trouble_msg, cx-100, cy, myText);
+            return;
+		}
+
 		// A great way to do some debugging
+		// These rattle down from the top left
 		for ( int i=0; i< msg_index; i++ ) {
-			canvas.drawText(msg[i], 10, 10+i*40, myPaint);
+			Log ( "Msg: " + msg[i] );
+			canvas.drawText(msg[i], 10, 100+i*40, myText);
 		}
 		
+		// No actual map display when showing these messages
 		if ( msg_index > 0 ) return;
 		
 		// Is there a map here ?
 		if ( ! Level.cur_check_map () ) {
-			canvas.drawText("No Map !!", cx-40, cy, myPaint);
+			canvas.drawText("No Map !!", cx-100, cy, myText);
 			return;
 		}
 		
@@ -274,7 +298,7 @@ public class MyView extends View {
 		if (center_maplet == null) {
 			String bad = "NULL";
 			int tx = cx - (int) myPaint.measureText(bad);
-			canvas.drawText(bad, tx, cy, myPaint);
+			canvas.drawText(bad, tx, cy, myText);
 			return;
 		}
 		
@@ -349,7 +373,7 @@ public class MyView extends View {
 				ey = oy + yy * py;
 				
 				if ( extra == null ) {
-					// canvas.drawText("MAP", ex, ey, myPaint);
+					// canvas.drawText("MAP", ex, ey, myText);
 				    continue;
 				}
 				// canvas.drawBitmap(extra.map, ex, ey, null);
@@ -375,7 +399,7 @@ public class MyView extends View {
 
 		// Put debug info on top of the map.
 		// for ( int i=0; i< msg_index; i++ ) {
-		// 	canvas.drawText(msg[i], 100, 100 + i * 30, myPaint);
+		// 	canvas.drawText(msg[i], 100, 100 + i * 30, myText);
 		// }
 		
 		// as near as I can tell, the android canvas origin

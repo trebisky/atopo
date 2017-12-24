@@ -11,6 +11,8 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Environment;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Window;
@@ -118,16 +120,68 @@ public class MainActivity extends Activity implements LocationListener {
 	//
 	// XXX - Someday it might be nice to "merge" maps from both locations,
 	// but that will take some new coding in other parts of the
-	// software.
+	// software.  Beside that, maps on an internal card never happen
+	// at this point in time, maybe someday.
 	//
 	// private final String file_base = "/storage/sdcard1/topo";
 	//
-	// apparently the right way to do this is:
-	// Environement.getExternalStorageDirectory().getAbsolutePath() + "/topo"
-		
+	// supposedly the right way to do this is:
+	//   Environment.getExternalStorageDirectory().getAbsolutePath() + "/topo"
+	// However, the path this gives me is /storage/emulated/0, which is
+	//   complete useless nonsense.
+	// Well, not quite nonsense, but by no means the path to the external SD card	
+
+	private String file_runner ( String path ) {
+		File d = new File ( path );
+		if ( ! d.isDirectory() ) {
+            // Log.e ( "Runner", "file: " + path );
+            return null;
+		}
+
+		File[] files = d.listFiles();
+
+		// We get both null here and arrays with zero length below
+		// If we don't check for this, we end up referencing null pointers below
+		if ( files == null ) {
+           // Log.e ( "Runner", "dir: " + path + " is empty" );
+           return null;
+		}
+
+        // Log.e ( "Runner", "dir: " + path + " " + files.length + " files" );
+
+		for ( int i = 0; i < files.length; i++ ) {
+			String name = files[i].getName();
+			String xpath = path + "/" + name;
+            File x = new File ( xpath );
+            if ( x.isDirectory() ) {
+            	if ( name.equals("topo") || name.equals("Topo") ) {
+                    Log.e ( "Runner", "Aha!: " + path + " " + files.length + " files" );
+                    return xpath;
+                }
+                String rv = file_runner ( xpath );
+                if ( rv != null )
+                	return rv;
+            }
+		}
+		return null;
+	}
+	
 	private String find_files () {
 		
 		File f;
+		String rv;
+
+		// String xx = Environment.getExternalStorageDirectory().getAbsolutePath();
+		// Log.e ( "ENV", xx );
+
+		rv = file_runner ( "/storage" );
+		if ( rv != null ) {
+            Log.e ( "Runner", rv  );
+            return rv;
+		}
+
+		// The above should do the job, but if not, we try
+		// some belt and suspenders using the historical code that follows.
 		
 		f = new File ( "/storage/sdcard1/topo" );
 		if ( f.exists() && f.isDirectory() ) {
@@ -154,6 +208,12 @@ public class MainActivity extends Activity implements LocationListener {
             return "/storage/external_SD/topo";
 		}
 		return null;
+	}
+	
+	private void trouble ( String msg ) {
+			MyView.onemsg ( msg );
+			// try to force an onDraw () event
+			// view.invalidate();
 	}
 	
 	// This function exists because we
@@ -274,12 +334,19 @@ public class MainActivity extends Activity implements LocationListener {
 		}
 		
 		if ( global_zoom > 1.5 ) {
-            MyView.set_hires ( true );
+		    MyView.set_hires ( true );
 		}
 
 		view = new MyView(this);
 		
 		file_base = find_files ();
+		if ( file_base == null ) {
+		    MyView.trouble ( "Cannot find map files" );
+		    // The following is essential
+		    setContentView(view);
+		    return;
+		}
+
 		Level.setup ( file_base, start_long, start_lat, global_zoom );
 		Level.set_level ( start_level );
 		
@@ -289,7 +356,7 @@ public class MainActivity extends Activity implements LocationListener {
 		timer.schedule(new tickTask(), 0, timer_delay);
 
 		if ( ! gps_running ) {
-			Level.set_alt_msg ( "GPS off" );
+		    Level.set_alt_msg ( "GPS off" );
 		}
 
 		// PowerManager powerManager = (PowerManager)
