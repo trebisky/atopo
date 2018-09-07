@@ -545,7 +545,8 @@ public class MyView extends View {
 		
 		if ( touch_count == 2 ) {
 			//Log ( "handle double click" );
-			boss.post_double_click ();
+			// get rid of this 9-8-2018 - use menu instead.
+			// boss.post_double_click ();
 		}
 		touch_count = 0;
 	}

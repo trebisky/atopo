@@ -17,6 +17,13 @@ public class Settings {// We want an options menu attached to the menu button
 	static int pref_display;
 	static boolean pref_gps;
 	
+	/* I am really abusing these.
+	 *  What I really want is buttons, but this will do.
+	 */
+	static MenuItem find_item;
+	static MenuItem track_item;
+	static MenuItem gps_item;
+	
 	// Tucson, Arizona
 	private static final double tuc_long = -110.94;
 	private static final double tuc_lat = 32.27;
@@ -60,20 +67,23 @@ public class Settings {// We want an options menu attached to the menu button
 	// Group codes -- used below
 	public static final int G_ZOOM = 0;
 	public static final int G_GPS = 1;
-	public static final int G_LOC = 2;
-	public static final int G_STAT = 3;
+	public static final int G_SGPS = 2;
+	public static final int G_LOC = 3;
+	public static final int G_STAT = 4;
 
 	// Item codes -- used below
 	public static final int ZOOM = 1;
 
-	public static final int GPS_1 = 11;
+	public static final int GPS_TRACK = 11;
+//	public static final int GPS_1 = 11;
 // 	public static final int GPS_5 = 12;
 // 	public static final int GPS_10 = 13;
 	public static final int GPS_OFF = 14;
+	public static final int GPS_FIND = 15;
 
-	public static final int LOC_TUC = 21;
-	public static final int LOC_SLC = 22;
-	public static final int LOC_RENO = 23;
+	// public static final int LOC_TUC = 21;
+	// public static final int LOC_SLC = 22;
+	// public static final int LOC_RENO = 23;
 
 	public static final int STAT_OFF = 31;
 	public static final int STAT_DMS = 32;
@@ -85,7 +95,18 @@ public class Settings {// We want an options menu attached to the menu button
 	// is more or less undocumented.  Not only that, but you have to
 	// bounce around between the XML file and this code.  I like it
 	// better with all the code right here.
-	
+
+	public static boolean get_gps () {
+        return pref_gps;
+	}
+
+	// This gets called when user interface turns GPS on or off
+	// Thusly the GPS state gets saved when the app shuts down.
+	// new behavior as of 12-26-2017
+	public static void set_gps ( boolean val) {
+        pref_gps = val;
+	}
+
 	public static double get_start_long () {
         return pref_start_long;
 	}
@@ -97,6 +118,15 @@ public class Settings {// We want an options menu attached to the menu button
 	public static int get_start_level () {
         return pref_start_level;
 	}
+
+	// Set long, lat, and level.
+	// This allows startup at last location.
+	// new behavior as of 12-26-2017
+	public static void set_start_lll ( double a_long, double a_lat, int a_level) {
+        pref_start_long = a_long;
+        pref_start_lat = a_lat;
+        pref_start_level = a_level;
+	}
 	
 	public static double get_zoom () {
         return pref_zoom;
@@ -106,7 +136,24 @@ public class Settings {// We want an options menu attached to the menu button
         return pref_display;
 	}
 
-	public static void createMenu ( Menu menu, MenuInflater inf ) {
+	public static void tweakMenu ( MainActivity app, Menu menu ) {
+		boolean running = app.is_gps_running();
+		boolean finding = false;
+		boolean tracking = false;
+
+        gps_item.setVisible(running);
+
+        if ( running ) {
+        	if ( app.is_finding() )
+                finding = true;
+        	else
+                tracking = true;
+        }
+        find_item.setChecked(finding);
+        track_item.setChecked(tracking);
+	}
+
+	public static void createMenu ( MainActivity app, Menu menu, MenuInflater inf ) {
 		MenuItem m;
 
 		m = menu.add ( G_ZOOM, ZOOM,  Menu.NONE, "Zoom 2.0" );
@@ -114,14 +161,28 @@ public class Settings {// We want an options menu attached to the menu button
 		if ( pref_zoom > 1.5 )
             m.setChecked(true);
 
-		menu.add ( G_GPS, GPS_1, Menu.NONE, "GPS 1 second" );
+		/* New 9-8-2018 */
+		find_item = menu.add ( G_GPS, GPS_FIND, Menu.NONE, "GPS find location" );
+
+		/* This was "GPS 1 second" up to 9-8-2018 */
+		track_item = menu.add ( G_GPS, GPS_TRACK, Menu.NONE, "GPS track location" );
 		/*
+		menu.add ( G_GPS, GPS_1, Menu.NONE, "GPS 1 second" );
 		menu.add ( G_GPS, GPS_5, Menu.NONE, "GPS 5 second" );
 		menu.add ( G_GPS, GPS_10, Menu.NONE, "GPS 10 second" );
 		*/
-		menu.add ( G_GPS, GPS_OFF, Menu.NONE, "GPS off" ).setChecked(true);
-		menu.setGroupCheckable ( G_GPS, true, true );
+		// This makes these radio buttons.
+		// menu.setGroupCheckable ( G_GPS, true, true );
+		find_item.setCheckable ( true );
+		track_item.setCheckable ( true );
 
+        // item = menu.add ( G_SGPS, GPS_OFF, Menu.NONE, "GPS off" ).setChecked(true);
+        gps_item = menu.add ( G_SGPS, GPS_OFF, Menu.NONE, "GPS off" );
+		// menu.setGroupCheckable ( G_SGPS, true, true );
+		gps_item.setCheckable ( true );
+        gps_item.setChecked(true);
+
+		/*
 		m = menu.add ( G_LOC, LOC_TUC, Menu.NONE, "Start at Tucson" );
         if ( pref_start_lat < 35.0 )
             m.setChecked(true);
@@ -134,6 +195,7 @@ public class Settings {// We want an options menu attached to the menu button
         if ( pref_start_lat > 35.0 && pref_start_lat < 40.0 )
             m.setChecked(true);
 		menu.setGroupCheckable ( G_LOC, true, true );
+		 */
 
 		m = menu.add ( G_STAT, STAT_OFF, Menu.NONE, "No long/lat display" );
         if ( pref_display == 0 )
@@ -169,13 +231,20 @@ public class Settings {// We want an options menu attached to the menu button
 	        return true;
 
         // radio buttons for GPS state follow
-	    case GPS_1:
-	    	if ( ! item.isChecked() ) {
-            	item.setChecked(true);
-            	app.set_gps_delay ( 1 );
-	    		app.start_gps();
-	    	}
-            //MyView.Log ( "Menu gps 1 second" );
+	    case GPS_TRACK:
+            item.setChecked(true);
+            app.set_gps_delay ( 1 );
+            app.start_gps();
+            //MyView.Log ( "Menu gps 1 second track" );
+	        return true;
+
+	    // New 9-8-2018
+	    case GPS_FIND:
+            item.setChecked(true);
+		    app.set_gps_delay ( 1 );
+		    app.set_gps_find ( 60 );
+		    app.start_gps();
+            //MyView.Log ( "Menu gps find" );
 	        return true;
 /*
 	    case GPS_5:
@@ -194,14 +263,13 @@ public class Settings {// We want an options menu attached to the menu button
 	        return true;
 */
 	    case GPS_OFF:
-	    	if ( ! item.isChecked() ) {
-            	item.setChecked(true);
-	    		app.stop_gps();
-	    	}
+            item.setChecked(false);
+            app.stop_gps();
             //MyView.Log ( "Menu gps off" );
 	        return true;
 
         // radio buttons for Starting Location
+        /*
 	    case LOC_TUC:
 	    	if ( ! item.isChecked() ) {
             	item.setChecked(true);
@@ -226,6 +294,7 @@ public class Settings {// We want an options menu attached to the menu button
                 save();
 	    	}
 	        return true;
+         */
 
         // radio buttons for Long/Lat display
 	    case STAT_OFF:

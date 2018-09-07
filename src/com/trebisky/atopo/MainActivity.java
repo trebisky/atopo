@@ -96,8 +96,12 @@ public class MainActivity extends Activity implements LocationListener {
 	private LocationManager locationManager;
 	
 	private int gps_delay = 1 * 1000;	// milliseconds
+
+	private int gps_find_timeout = 0;		// seconds
+	private int gps_find_repeat = 0;
 	
-	private final int timer_delay = 250;
+	private final int timer_delay = 250;	// milliseconds
+	private final int timer_hz = 4;
 	
 	private MyView view;
 
@@ -207,6 +211,12 @@ public class MainActivity extends Activity implements LocationListener {
 		if ( f.exists() && f.isDirectory() ) {
             return "/storage/external_SD/topo";
 		}
+
+		// For internal storage as per Paul  9-7-2018
+		f = new File ( "/sdcard/topo" );
+		if ( f.exists() && f.isDirectory() ) {
+            return "/sdcard/topo";
+		}
 		return null;
 	}
 	
@@ -255,6 +265,10 @@ public class MainActivity extends Activity implements LocationListener {
 	}
 	
 	private int marker_count = 0;
+	
+	public boolean is_finding () {
+		return gps_find_timeout > 0;
+	}
 
 	// This runs in its own thread, so no UI updates here.
 	// XXX we want to change the marker to indicate if the
@@ -267,6 +281,12 @@ public class MainActivity extends Activity implements LocationListener {
 			}
 			view.motion_tick ();
 			post_invalidate ();
+        if ( gps_find_timeout > 0 ) {
+			    gps_find_timeout--;
+			    if ( gps_find_timeout <= 0 ) {
+				stop_gps ();
+			    }
+			}
 		}
 	};
 	
@@ -320,8 +340,9 @@ public class MainActivity extends Activity implements LocationListener {
 			// start_lat = LAT_START;
 			// start_long = LONG_START;
 			// start_level = LEVEL_START;
-			gps_running = false;
+			// gps_running = false;
 			Settings.init ( getSharedPreferences ( "atopo_preferences", Activity.MODE_PRIVATE ) );
+			gps_running = Settings.get_gps ();;
 			start_lat = Settings.get_start_lat ();
 			start_long = Settings.get_start_long ();
 			start_level = Settings.get_start_level ();
@@ -367,7 +388,7 @@ public class MainActivity extends Activity implements LocationListener {
 	// We want an options menu attached to the menu button
 	// Note that although this works fine on Android 4.4 (KitKat)
 	// with my Samsung Galaxy S4 phone, on my old Motorola Xoom
-	// tablet, there is not dedicated menu button and thus no way
+	// tablet, there is no dedicated menu button and thus no way
 	// to get to these menus.  The answer is to set the minSDK to 8
 	// and most importantly the target SDK to 10 in the AndroidManifest.xml
 	// file, this yields a little menu icon at the bottom left and works fine.
@@ -375,6 +396,7 @@ public class MainActivity extends Activity implements LocationListener {
 	// use the "Action Bar", but as long as this works, it saves screen
 	// real estate and keeps me happy.  tjt  5-26-2014
 	// They want me to set up my menu using XML also, foo on them.
+	// This gets called only ONCE, when the menu is first brought up.
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
@@ -383,9 +405,17 @@ public class MainActivity extends Activity implements LocationListener {
 	    MenuInflater inflater = getMenuInflater();
 	    inflater.inflate(R.menu.atopo_menu, menu);
 	    */
-		Settings.createMenu ( menu, getMenuInflater() );
+		Settings.createMenu ( this, menu, getMenuInflater() );
 	    // MyView.onemsg ( "Menu" );
 	    return true;
+	}
+
+	// Unlike the above, this gets called every time.
+	// However the intent is that it modify what the above set up.
+	
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		Settings.tweakMenu ( this, menu );
+		return true;
 	}
 
 	// simple code for menu selected
@@ -402,6 +432,8 @@ public class MainActivity extends Activity implements LocationListener {
 	@Override
     public void onPause() {
         super.onPause();
+        
+        Settings.set_start_lll ( Level.cur_long(), Level.cur_lat(), Level.get_level() );
 
         if ( gps_running )
             locationManager.removeUpdates(this);
@@ -414,15 +446,46 @@ public class MainActivity extends Activity implements LocationListener {
         if ( gps_running )
         	start_gps ();
     }
+
+    /* 9-7-2018
+     * Adding the save of current location to onStop and onDestroy works to
+     * make Atopo come up at the last place viewed and makes the starting location
+     * menu thing obsolete.
+     */
+    @Override
+    public void onStop(){
+        super.onStop();
+        
+        Settings.set_start_lll ( Level.cur_long(), Level.cur_lat(), Level.get_level() );
+        Settings.save ();
+    }
+
+    @Override
+    public void onDestroy(){
+        super.onStop();
+        
+        Settings.set_start_lll ( Level.cur_long(), Level.cur_lat(), Level.get_level() );
+        Settings.save ();
+    }
     
     public void set_gps_delay ( int arg ) {
     	gps_delay = arg * 1000;
+    }
+
+    public void set_gps_find ( int timeout ) {
+	gps_find_timeout = timeout * timer_hz;
+	gps_find_repeat = 3;	// after 3 locations, turn off GPS
+    }
+
+    public boolean is_gps_running () {
+	return gps_running;
     }
     
     // Start out requesting updates as fast as possible,
     // when first update arrives, throttle back the rate.
     public void start_gps () {
     	MyView.Log ( "turning on GPS" );
+		Settings.set_gps ( true );
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 		gps_running = true;
 		gps_first = true;
@@ -432,6 +495,7 @@ public class MainActivity extends Activity implements LocationListener {
     
     public void stop_gps () {
     	MyView.Log ( "turning off GPS" );
+		Settings.set_gps ( false );
         locationManager.removeUpdates(this);
 		gps_running = false;
 	    //MyView.onemsg ( "GPS off" );
@@ -466,6 +530,14 @@ public class MainActivity extends Activity implements LocationListener {
     	}
          
          Level.setgps ( lng, lat, alt );
+
+	if ( gps_find_repeat > 0 ) {
+	    gps_find_repeat--;
+	    if ( gps_find_repeat <= 0 ) {
+		stop_gps ();
+		gps_find_timeout = 0;
+	    }
+	}
          
          view.invalidate();
  }
