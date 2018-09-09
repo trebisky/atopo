@@ -39,8 +39,20 @@ public class Settings {
 	// private static final double reno_lat = 39.47361;
 
 	// Mt. Rainier, Washington
-	private static final double first_long = -121.765;
-	private static final double first_lat = 46.854;
+	// private static final double first_long = -121.765;
+	// private static final double first_lat = 46.854;
+
+	// Four Corners
+	// private static final double first_long = -109.045;
+	// private static final double first_lat = 37.0;
+
+	// Spider Rock, Canyon De Chelly
+	// private static final double first_long = -109.35;
+	// private static final double first_lat = 36.108;
+
+	// Hopi Point, Grand Canyon
+	private static final double first_long = -112.154;
+	private static final double first_lat = 36.074;
 
 	// This gets called when the app first starts up.
 	public static void init ( SharedPreferences pref ) {
@@ -141,17 +153,17 @@ public class Settings {
 	// This allows startup at last location.
 	// new behavior as of 12-26-2017
 	public static void set_start_lll ( double a_long, double a_lat, int a_level) {
-        pref_start_long = a_long;
-        pref_start_lat = a_lat;
-        pref_start_level = a_level;
+	    pref_start_long = a_long;
+	    pref_start_lat = a_lat;
+	    pref_start_level = a_level;
 	}
 	
 	public static double get_zoom () {
-        return pref_zoom;
+	    return pref_zoom;
 	}
 
 	public static int get_display () {
-        return pref_display;
+	    return pref_display;
 	}
 
 	public static void tweakMenu ( MainActivity app, Menu menu ) {
