@@ -507,15 +507,15 @@ public class Level {
 		map = encode_map ( _long, _lat );
 		tpq = file_cache.fetch ( cur_level.path, map );
 		if ( ! tpq.isvalid() ) {
-			MyView.setmsg ( "TPQ invalid: " + map );
+			// MyView.setmsg ( "TPQ invalid: " + map );
 			return false;
 		}
 		
 		if ( _long < tpq.west() || _long > tpq.east() || _lat < tpq.south() || _lat > tpq.north() ) {
-			MyView.setmsg ( "New Location out of Bounds: " + map );
-			MyView.setmsg ( " Lo/La: " + _long + " " + _lat );
-			MyView.setmsg ( " W/E: " + tpq.west() + " " + tpq.east() );
-			MyView.setmsg ( " S/N: " + tpq.south() + " " + tpq.north() );
+			// MyView.setmsg ( "New Location out of Bounds: " + map );
+			// MyView.setmsg ( " Lo/La: " + _long + " " + _lat );
+			// MyView.setmsg ( " W/E: " + tpq.west() + " " + tpq.east() );
+			// MyView.setmsg ( " S/N: " + tpq.south() + " " + tpq.north() );
 			return false;
 		}
 		return true;
