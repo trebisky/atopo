@@ -343,7 +343,7 @@ public class Level {
 	}
 		
 	// static methods
-	public static boolean setup ( String base, double _long, double _lat, int _level ) {
+	public static boolean setup ( String base ) {
 		
 		Level l;
 		int lev = 0;
@@ -380,6 +380,7 @@ public class Level {
 		    levels[lev++] = l;
 		}
 
+		/* XXX L_24K and L_24KZ can and should share maplet cache */
 		l = new Level ( L_24KZ, base + "/l5", "n", 2.0 );
 		if ( l.valid ) {
 		    l.index = lev;
@@ -392,30 +393,45 @@ public class Level {
 		if ( last_level < 0 )
 		    return false;
 
-		/* XXX L_24K and L_24KZ can and should share maplet cache */
+
+		return true;
+	}
+
+	public static boolean set_lll ( double _long, double _lat, int _level ) {
+		Level l;
 
 		l = find_level ( _level );
 		if ( l != null ) {
+		    /* The normal case, resume as expected,
+		     * or use the "first user" startup, which ought to work.
+		     */
 		    cur_level = l;
 		    // MyView.onemsg ( "Setup OK on level " + cur_level.level );
 		} else {
-		    cur_level = levels[last_level];
+		    /* Switch to a valid level, retain long/lat for now */
+		    cur_level = levels[0];
+		    //cur_level = levels[last_level];
 		    // MyView.onemsg ( "Setup Reset to level " + cur_level.level );
 		}
 
 		// set_level ( _level );
 		
-		/* XXX */
 		if ( ! check_map ( _long, _lat ) ) {
-		    _long = -100.0;
-		    _lat = 35.0;
+		    _long = Settings.get_first_long();
+		    _lat = Settings.get_first_lat();
 		}
+
+		/* Something exotic is going on, the normal startup is
+		 * not working.
+		 * XXX - we could do some centroid value on the cur_level.
+		 */
+		if ( ! check_map ( _long, _lat ) )
+		    return false;
 
 		setpos ( _long, _lat );
 
 		// MyView.onemsg ( "Cur long: " + cur_long );
 		// MyView.onemsg ( "Cur lat: " + cur_lat );
-
 		return true;
 	}
 	

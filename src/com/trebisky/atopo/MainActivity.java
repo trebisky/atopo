@@ -28,6 +28,8 @@ public class MainActivity extends Activity implements LocationListener {
 
 	private boolean gps_running;
 	private boolean gps_first;
+	
+	private static final boolean debug = false;
 
     // private final short LEVEL_START = Level.L_24K;
     // private final short LEVEL_START = Level.L_100K;
@@ -178,10 +180,12 @@ public class MainActivity extends Activity implements LocationListener {
 		// Log.e ( "ENV", xx );
 
 		/* XXX - special for testing */
-//		f = new File ( "/sdcard/topo" );
-//		if ( f.exists() && f.isDirectory() ) {
-//            return "/sdcard/topo";
-//		} else
+		if ( debug ) {
+                f = new File ( "/sdcard/topo" );
+                if ( f.exists() && f.isDirectory() ) {
+                    return "/sdcard/topo";
+                }
+        }
 		/* XXX - special for testing */
 
 		rv = file_runner ( "/storage" );
@@ -313,7 +317,6 @@ public class MainActivity extends Activity implements LocationListener {
 		double start_long;
 		int start_level;
 		String file_base;
-		boolean ok;
 		double starting_zoom;
 
 		super.onCreate(savedInstanceState);
@@ -340,17 +343,14 @@ public class MainActivity extends Activity implements LocationListener {
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		
 		if ( savedInstanceState != null ) {
+			/* This is used when the app is paused/resumed */
 			start_lat = savedInstanceState.getDouble ( "lat" );
 			start_long = savedInstanceState.getDouble ( "long" );
 			gps_running = savedInstanceState.getBoolean ( "gps" );
 			start_level = (int) savedInstanceState.getShort ( "level" );
 			starting_zoom = savedInstanceState.getDouble ( "zoom" );
 		} else {
-			// start_lat = LAT_START;
-			// start_long = LONG_START;
-			// start_level = LEVEL_START;
-			// gps_running = false;
-
+			/* This is used when the app first fires up */
 			Settings.init ( getSharedPreferences ( "atopo_preferences", Activity.MODE_PRIVATE ) );
 
 			gps_running = Settings.get_gps ();;
@@ -382,8 +382,7 @@ public class MainActivity extends Activity implements LocationListener {
 		// MyView.onemsg ( "Start long: " + start_long );
 		// MyView.onemsg ( "Start lat: " + start_lat );
 
-		ok = Level.setup ( file_base, start_long, start_lat, start_level );
-		if ( ! ok ) {
+		if ( ! Level.setup ( file_base ) ) {
 		    MyView.trouble ( "Cannot grog map files" );
 		    // The following is essential
 		    setContentView(view);
@@ -391,6 +390,12 @@ public class MainActivity extends Activity implements LocationListener {
 		}
 
 		Level.set_zoom ( starting_zoom );
+		if ( ! Level.set_lll ( start_long, start_lat, start_level ) ) {
+		    MyView.trouble ( "Cannot find start location" );
+		    // The following is essential
+		    setContentView(view);
+		    return;
+		}
 		
 		setContentView(view);
 

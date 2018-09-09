@@ -6,7 +6,9 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 
-public class Settings {// We want an options menu attached to the menu button
+// We want an options menu attached to the menu button
+
+public class Settings {
 
 	private static SharedPreferences myPref;
 	
@@ -37,15 +39,15 @@ public class Settings {// We want an options menu attached to the menu button
 	// private static final double reno_lat = 39.47361;
 
 	// Mt. Rainier, Washington
-	private static final double rainier_long = -121.765;
-	private static final double rainier_lat = 46.854;
+	private static final double first_long = -121.765;
+	private static final double first_lat = 46.854;
 
-	// public void Settings () { }
+	// This gets called when the app first starts up.
 	public static void init ( SharedPreferences pref ) {
 		myPref = pref;
 		pref_zoom = myPref.getFloat ( "zoom", 2.0F );
-		pref_start_long = myPref.getFloat ( "start_long", (float) rainier_long );
-		pref_start_lat = myPref.getFloat ( "start_lat", (float) rainier_lat );
+		pref_start_long = myPref.getFloat ( "start_long", (float) first_long );
+		pref_start_lat = myPref.getFloat ( "start_lat", (float) first_lat );
 		pref_start_level = Level.decode_level ( myPref.getString ( "start_level", Level.encode_level(Level.L_ATLAS) ) );
 		pref_display = myPref.getInt ( "display", 1 );
 		pref_gps = myPref.getBoolean ( "gps", false );
@@ -108,19 +110,31 @@ public class Settings {// We want an options menu attached to the menu button
 	// Thusly the GPS state gets saved when the app shuts down.
 	// new behavior as of 12-26-2017
 	public static void set_gps ( boolean val) {
-        pref_gps = val;
+	    pref_gps = val;
 	}
 
+	/* This returns the values we intent
+	 *  to be used for a first time startup.
+	 */
+	public static double get_first_long () {
+	    return first_long;
+	}
+
+	public static double get_first_lat () {
+	    return first_lat;
+	}
+
+	/* This returns any persistent value */
 	public static double get_start_long () {
-        return pref_start_long;
+	    return pref_start_long;
 	}
 
 	public static double get_start_lat () {
-        return pref_start_lat;
+	    return pref_start_lat;
 	}
 
 	public static int get_start_level () {
-        return pref_start_level;
+	    return pref_start_level;
 	}
 
 	// Set long, lat, and level.
