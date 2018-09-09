@@ -9,6 +9,8 @@ public class Level {
 	public String path;
 	public String prefix;
 	public int level; 
+	public boolean valid;
+	private int index;
 		
 	// Set only for state and atlas levels
 	public String onefile;
@@ -34,21 +36,25 @@ public class Level {
 		
 	private MapletCache maplet_cache;
 	
+	public double base_zoom;
 	public double zoom;
 	
 	// ------------ Static fields
 	// ------------
 	private static FileCache file_cache;
 	
-	private static final int NUM_LEVELS = 5;
-	
 	// XX could perhaps change to a Java enum someday
+	// Do NOT use these as array indices.
 	public static final int L_STATE = 0;
 	public static final int L_ATLAS = 1;
 	public static final int L_500K = 2;
 	public static final int L_100K = 3;
 	public static final int L_24K = 4;
+	public static final int L_24KZ = 5;
 	
+	/* These encode/decode strings are just used to save the
+	 * current level in the settings storage.
+	 */
 	public static String encode_level ( int l ) {
 		switch ( l ) {
 		case L_STATE:	return "state";
@@ -56,6 +62,7 @@ public class Level {
 		case L_500K:	return "500K";
 		case L_100K:	return "100K";
 		case L_24K:	    return "24K";
+		case L_24KZ:	    return "24KZ";
 		default: 		return "--";
 		}
 	}
@@ -71,12 +78,18 @@ public class Level {
 			return L_100K;
 		} else if ( s.equals("24K") ) {
 			return L_24K;
+		} else if ( s.equals("24KZ") ) {
+			return L_24KZ;
 		} else {
 			return L_ATLAS;
 		}
 	}
-	
-	private static Level levels[] = new Level[NUM_LEVELS];
+
+	// private static final int MAX_LEVELS = 5;
+	private static final int MAX_LEVELS = 6;
+	private static Level levels[] = new Level[MAX_LEVELS];
+
+	private static int last_level;
 	
 	private static Level cur_level;
 	
@@ -90,6 +103,7 @@ public class Level {
 	public Level ( int l, String p, String extra, double z ) {
 		level = l;
 		path = p;
+		base_zoom = z;
 		zoom = z;
 			
 		if ( l == L_STATE || l == L_ATLAS ) {
@@ -100,20 +114,20 @@ public class Level {
 			
 		maplet_cache = new MapletCache ();
 			
-		probe_map();
+		valid = probe_map();
 	}
 	
 	// allow zoom to be reset after startup.
 	public static void set_zoom ( double z )
 	{
-		for ( int l=0; l<NUM_LEVELS; l++ ) {
-			levels[l].zoom = z;
+		for ( int l=0; l <= last_level; l++ ) {
+			levels[l].zoom = levels[l].base_zoom * z;
 		}
 	}
 	
 	// Called at startup during level setup
 	// read some map file to get header info.
-	private void probe_map () {
+	private boolean probe_map () {
 		String probe_map;
 		tpqFile tpq;
 			
@@ -121,9 +135,9 @@ public class Level {
 		//MyView.Log( "Probing map: " + probe_map);
 			
 		if ( probe_map == null ) {
-			MyView.Log ( "Probe fails");
-			MyView.onemsg("Probe_fails");
-			return;
+			MyView.Log ( "Probe fails for level " + level );
+			// MyView.onemsg("Probe_fails for level " + level );
+			return false;
 		}
 			
 		// MyView.onemsg("Probing " + probe_map);
@@ -132,8 +146,8 @@ public class Level {
 		
 		if ( ! tpq.isvalid() ) {
 			MyView.Log ( "Probe fails, bad TPQ: " + probe_map);
-			MyView.onemsg ( "Probe fails, bad TPQ: " + probe_map);
-			return;
+			// MyView.onemsg ( "Probe fails, bad TPQ: " + probe_map);
+			return false;
 		}
 			
 		// no need to keep this open after a probe.
@@ -168,6 +182,7 @@ public class Level {
 		// only used for state and altas levels
 		south = tpq.south();
 		east = tpq.east();
+		return true;
 	}
 		
 	// Called at startup during level setup
@@ -186,9 +201,15 @@ public class Level {
 		// and it happens only once at startup.
 		// it does work just fine.
 		File [] list = f.listFiles();	// may be huge !
+
+		if ( list == null )
+		    return null;
 			
 		for ( File m: list ) {
 			String a_file = m.getName();
+			
+			if ( a_file == null )
+				continue;
 			
 			if ( a_file.length() < 3 )
 				continue;
@@ -204,24 +225,24 @@ public class Level {
 
 	// gps calls this
 	public static void setgps ( double _long, double _lat, double _alt ) {
-		setpos_x ( _long, _lat );
+		setpos_i ( _long, _lat );
 		cur_alt = _alt;
 		alt_msg = null;
 	}
 
 	// called at startup and when we jog position
 	public static void setpos ( double _long, double _lat ) {
-		setpos_x ( _long, _lat );
+		setpos_i ( _long, _lat );
 		if ( alt_msg == null )
             alt_msg = " ";
 	}
 	
-	private static void setpos_x ( double _long, double _lat ) {
+	private static void setpos_i ( double _long, double _lat ) {
 		
 		// Before we allow the user to move to a new center location
 		// we want to verify that a map is there (this means it will
 		// never be possible to move a map edge or corner beyond center).
-		if ( ! Level.check_map ( _long, _lat ) ) {
+		if ( ! check_map ( _long, _lat ) ) {
 			MyView.onemsg("No Map at x,y");
 			return;
 		}
@@ -310,28 +331,101 @@ public class Level {
 			setpos ( new_long, new_lat );
 		}
 	}
+
+	private static Level find_level ( int level ) {
+		int i;
+
+		for ( i=0; i<= last_level; i++ ) {
+		    if ( levels[i].level == level )
+			return levels[i];
+		}
+		return null;
+	}
 		
 	// static methods
-	public static void setup ( String base, double _long, double _lat, double zoom ) {
+	public static boolean setup ( String base, double _long, double _lat, int _level ) {
 		
+		Level l;
+		int lev = 0;
+
 		file_cache = new FileCache ();
 		
-		levels[0] = new Level ( L_STATE, base, "us1map1", zoom );
-		levels[1] = new Level ( L_ATLAS, base, "us1map2", zoom );
-		levels[2] = new Level ( L_500K, base + "/l3", "g", zoom );
-		levels[3] = new Level ( L_100K, base + "/l4", "c", zoom );
-		levels[4] = new Level ( L_24K, base + "/l5", "n", zoom );
+		l = new Level ( L_STATE, base, "us1map1", 1.0 );
+		if ( l.valid ) {
+		    l.index = lev;
+		    levels[lev++] = l;
+		}
+
+		l = new Level ( L_ATLAS, base, "us1map2", 1.0 );
+		if ( l.valid ) {
+		    l.index = lev;
+		    levels[lev++] = l;
+		}
+
+		l = new Level ( L_500K, base + "/l3", "g", 1.0 );
+		if ( l.valid ) {
+		    l.index = lev;
+		    levels[lev++] = l;
+		}
+
+		l = new Level ( L_100K, base + "/l4", "c", 1.0 );
+		if ( l.valid ) {
+		    l.index = lev;
+		    levels[lev++] = l;
+		}
+
+		l = new Level ( L_24K, base + "/l5", "n", 1.0 );
+		if ( l.valid ) {
+		    l.index = lev;
+		    levels[lev++] = l;
+		}
+
+		l = new Level ( L_24KZ, base + "/l5", "n", 2.0 );
+		if ( l.valid ) {
+		    l.index = lev;
+		    levels[lev++] = l;
+		}
+
+		// MyView.onemsg ( "I see valid levels: " + lev );
+		last_level = lev - 1;
+
+		if ( last_level < 0 )
+		    return false;
+
+		/* XXX L_24K and L_24KZ can and should share maplet cache */
+
+		l = find_level ( _level );
+		if ( l != null ) {
+		    cur_level = l;
+		    // MyView.onemsg ( "Setup OK on level " + cur_level.level );
+		} else {
+		    cur_level = levels[last_level];
+		    // MyView.onemsg ( "Setup Reset to level " + cur_level.level );
+		}
+
+		// set_level ( _level );
 		
-		set_level ( L_24K );
-		
+		/* XXX */
+		if ( ! check_map ( _long, _lat ) ) {
+		    _long = -100.0;
+		    _lat = 35.0;
+		}
+
 		setpos ( _long, _lat );
+
+		// MyView.onemsg ( "Cur long: " + cur_long );
+		// MyView.onemsg ( "Cur lat: " + cur_lat );
+
+		return true;
 	}
 	
+	/* Zoom out (less detail) */
 	public static boolean up () {
-		if ( cur_level.level <= 0 )
+		MyView.Log ( "Try up from level " + cur_level.level );
+		if ( cur_level.index <= 0 )
 			return false;
-		Level new_level = levels[cur_level.level-1];
-		MyView.Log ( "Try up to level " + new_level.level );
+		Level new_level = levels[cur_level.index-1];
+		MyView.Log ( "Go up to level " + new_level.level );
 		
 		if ( new_level.probe() ) {
 			cur_level = new_level;
@@ -340,11 +434,13 @@ public class Level {
 		return false;
 	}
 	
+	/* Zoom in (more detail) */
 	public static boolean down () {
-		if ( cur_level.level >= NUM_LEVELS - 1 )
+		MyView.Log ( "Try down from level " + cur_level.level );
+		if ( cur_level.index >= last_level )
 			return false;
-		Level new_level = levels[cur_level.level+1];
-		MyView.Log ( "Try down to level " + new_level.level );
+		Level new_level = levels[cur_level.index+1];
+		MyView.Log ( "Go down to level " + new_level.level );
 		
 		if ( new_level.probe() ) {
 			cur_level = new_level;
@@ -361,15 +457,15 @@ public class Level {
 		return m != null;
 	}
 	
-	public static void set_level ( int arg ) {
-		if ( arg >= 0 && arg < NUM_LEVELS ) {
-			cur_level = levels[arg];
-			return;
-		}
-		// failsafe on initialization
-		if ( cur_level == null )
-			cur_level = levels[L_STATE];
-	}
+//	private static void set_level ( int arg ) {
+//		if ( arg >= 0 && arg < NUM_LEVELS ) {
+//			cur_level = levels[arg];
+//			return;
+//		}
+//		// failsafe on initialization
+//		if ( cur_level == null )
+//			cur_level = levels[L_STATE];
+//	}
 
 	public static double get_zoom () {
 		return cur_level.zoom;
@@ -378,28 +474,6 @@ public class Level {
 	
 	public static int get_level () {
 		return cur_level.level;
-	}
-	
-	// These 5 methods may now be un-necessary ...
-	// XXX XXX
-	public static void set_state () {
-		set_level ( L_STATE );
-	}
-	
-	public static void set_atlas () {
-		set_level ( L_ATLAS );
-	}
-	
-	public static void set_500k () {
-		set_level ( L_500K );
-	}
-	
-	public static void set_100k () {
-		set_level ( L_100K );
-	}
-	
-	public static void set_24k () {
-		set_level ( L_24K );
 	}
 	
 	public static boolean cur_check_map () {
@@ -416,13 +490,16 @@ public class Level {
 		// form is something like "n36112a1"
 		map = encode_map ( _long, _lat );
 		tpq = file_cache.fetch ( cur_level.path, map );
-		if ( ! tpq.isvalid() )
+		if ( ! tpq.isvalid() ) {
+			MyView.setmsg ( "TPQ invalid: " + map );
 			return false;
+		}
 		
 		if ( _long < tpq.west() || _long > tpq.east() || _lat < tpq.south() || _lat > tpq.north() ) {
-			// MyView.setmsg ( "New Location out of Bounds: " + map );
-			// MyView.setmsg ( " W/E: " + center_tpq.west() + " " + center_tpq.east() );
-			// MyView.setmsg ( " S/N: " + center_tpq.south() + " " + center_tpq.north() );
+			MyView.setmsg ( "New Location out of Bounds: " + map );
+			MyView.setmsg ( " Lo/La: " + _long + " " + _lat );
+			MyView.setmsg ( " W/E: " + tpq.west() + " " + tpq.east() );
+			MyView.setmsg ( " S/N: " + tpq.south() + " " + tpq.north() );
 			return false;
 		}
 		return true;
@@ -629,6 +706,11 @@ public class Level {
 		// note -- must ensure longitude gets output with 3 digits
 		return prefix + ilat + String.format("%03d",ilong) + lat_code[iy] + (ix+1);
 	}
+
+
+        public static boolean maybe () {
+                        return true;
+        }
 
 }
 

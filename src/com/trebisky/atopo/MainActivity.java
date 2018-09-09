@@ -91,7 +91,6 @@ public class MainActivity extends Activity implements LocationListener {
 	// 5-14-2014 set this to 1.0 for tablet, 2.0 for phone
 	// private double global_zoom = 1.0;
 	// private double global_zoom = 2.0;
-	private double global_zoom = 1.0;
 	
 	private LocationManager locationManager;
 	
@@ -178,12 +177,19 @@ public class MainActivity extends Activity implements LocationListener {
 		// String xx = Environment.getExternalStorageDirectory().getAbsolutePath();
 		// Log.e ( "ENV", xx );
 
+		/* XXX - special for testing */
+//		f = new File ( "/sdcard/topo" );
+//		if ( f.exists() && f.isDirectory() ) {
+//            return "/sdcard/topo";
+//		} else
+		/* XXX - special for testing */
+
 		rv = file_runner ( "/storage" );
 		if ( rv != null ) {
             Log.e ( "Runner", rv  );
             return rv;
 		}
-
+		
 		// The above should do the job, but if not, we try
 		// some belt and suspenders using the historical code that follows.
 		
@@ -307,7 +313,9 @@ public class MainActivity extends Activity implements LocationListener {
 		double start_long;
 		int start_level;
 		String file_base;
-		
+		boolean ok;
+		double starting_zoom;
+
 		super.onCreate(savedInstanceState);
 
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -336,17 +344,20 @@ public class MainActivity extends Activity implements LocationListener {
 			start_long = savedInstanceState.getDouble ( "long" );
 			gps_running = savedInstanceState.getBoolean ( "gps" );
 			start_level = (int) savedInstanceState.getShort ( "level" );
+			starting_zoom = savedInstanceState.getDouble ( "zoom" );
 		} else {
 			// start_lat = LAT_START;
 			// start_long = LONG_START;
 			// start_level = LEVEL_START;
 			// gps_running = false;
+
 			Settings.init ( getSharedPreferences ( "atopo_preferences", Activity.MODE_PRIVATE ) );
+
 			gps_running = Settings.get_gps ();;
 			start_lat = Settings.get_start_lat ();
 			start_long = Settings.get_start_long ();
 			start_level = Settings.get_start_level ();
-			global_zoom = Settings.get_zoom ();
+			starting_zoom = Settings.get_zoom ();
 			MyView.set_display_mode ( Settings.get_display () );
 		}
 		
@@ -354,7 +365,7 @@ public class MainActivity extends Activity implements LocationListener {
 			start_gps ();
 		}
 		
-		if ( global_zoom > 1.5 ) {
+		if ( starting_zoom > 1.5 ) {
 		    MyView.set_hires ( true );
 		}
 
@@ -368,8 +379,18 @@ public class MainActivity extends Activity implements LocationListener {
 		    return;
 		}
 
-		Level.setup ( file_base, start_long, start_lat, global_zoom );
-		Level.set_level ( start_level );
+		// MyView.onemsg ( "Start long: " + start_long );
+		// MyView.onemsg ( "Start lat: " + start_lat );
+
+		ok = Level.setup ( file_base, start_long, start_lat, start_level );
+		if ( ! ok ) {
+		    MyView.trouble ( "Cannot grog map files" );
+		    // The following is essential
+		    setContentView(view);
+		    return;
+		}
+
+		Level.set_zoom ( starting_zoom );
 		
 		setContentView(view);
 

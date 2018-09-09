@@ -25,23 +25,27 @@ public class Settings {// We want an options menu attached to the menu button
 	static MenuItem gps_item;
 	
 	// Tucson, Arizona
-	private static final double tuc_long = -110.94;
-	private static final double tuc_lat = 32.27;
+	// private static final double tuc_long = -110.94;
+	// private static final double tuc_lat = 32.27;
 	
 	// Joe Marty, Salt Lake City
-	private static final double slc_long = -111.7529;
-	private static final double slc_lat = 40.7729;
+	// private static final double slc_long = -111.7529;
+	// private static final double slc_lat = 40.7729;
 
 	// Reno, Nevada
-	private static final double reno_long = -119.78294;
-	private static final double reno_lat = 39.47361;
+	// private static final double reno_long = -119.78294;
+	// private static final double reno_lat = 39.47361;
+
+	// Mt. Rainier, Washington
+	private static final double rainier_long = -121.765;
+	private static final double rainier_lat = 46.854;
 
 	// public void Settings () { }
 	public static void init ( SharedPreferences pref ) {
 		myPref = pref;
 		pref_zoom = myPref.getFloat ( "zoom", 2.0F );
-		pref_start_long = myPref.getFloat ( "start_long", (float) slc_long );
-		pref_start_lat = myPref.getFloat ( "start_lat", (float) slc_lat );
+		pref_start_long = myPref.getFloat ( "start_long", (float) rainier_long );
+		pref_start_lat = myPref.getFloat ( "start_lat", (float) rainier_lat );
 		pref_start_level = Level.decode_level ( myPref.getString ( "start_level", Level.encode_level(Level.L_ATLAS) ) );
 		pref_display = myPref.getInt ( "display", 1 );
 		pref_gps = myPref.getBoolean ( "gps", false );
